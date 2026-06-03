@@ -1,0 +1,34 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+beidou-go
+beidou-go.exe
+bin/
+dist/
+
+# Test binary
+*.test
+
+# Go coverage
+*.out
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config (keep template, ignore local)
+config/config.local.yaml
+
+# Data
+data/
+wz/
+logs/

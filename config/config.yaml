@@ -1,0 +1,22 @@
+server:
+  name: "BeiDou-Go"
+  host: "0.0.0.0"
+  log_file: ""   # 空=输出到终端
+
+database:
+  host: "127.0.0.1"
+  port: 3306
+  user: "root"
+  password: ""
+  db_name: "beidou"
+
+login:
+  port: 8484
+
+channel:
+  port: 7575
+  max_players: 100
+
+script:
+  path: "scripts"
+  hot_reload: false
