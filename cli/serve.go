@@ -1,20 +1,19 @@
 package cli
 
 import (
+	"beidou-go/config"
+	"beidou-go/internal/network"
+	"beidou-go/internal/server/channel"
+	"beidou-go/internal/server/login"
 	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"beidou-go/config"
-	"beidou-go/internal/network"
-	"beidou-go/internal/server/channel"
-	"beidou-go/internal/server/login"
-	"beidou-go/internal/store"
-
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
+
 )
 
 func cmdServe() *cli.Command {
@@ -36,6 +35,7 @@ func runServe() error {
 
 	// 初始化日志
 	log = logrus.New()
+	log.SetLevel(logrus.DebugLevel) // 骨架阶段用 Debug 级别，方便看 hex dump 对标 Wireshark
 	log.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp:   true,
 		TimestampFormat: "2006-01-02 15:04:05",
@@ -49,11 +49,14 @@ func runServe() error {
 	}
 	log.Infof("加载配置完成: %s", cfgPath)
 
+	// 将 logger 注入 network 包，使 Session 的 hex dump 日志能正常输出
+	network.Log = log
+
 	// 初始化数据库
-	if err := store.InitDB(cfg.Database); err != nil {
-		return fmt.Errorf("数据库初始化失败: %w", err)
-	}
-	log.Info("数据库连接成功")
+	// if err := store.InitDB(cfg.Database); err != nil {
+	// 	return fmt.Errorf("数据库初始化失败: %w", err)
+	// }
+	// log.Info("数据库连接成功")
 
 	// 创建 TCP 服务器
 	tcpSrv := network.NewTCPServer(cfg.Server.Host)
