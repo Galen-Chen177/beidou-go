@@ -122,6 +122,8 @@ func TestMain(t *testing.T) {
 
 	fullPacket2 := append(header2, encrypted2...)
 
+	fmt.Println(hex.Dump(fullPacket2))
+
 	hdrU32_2 := binary.BigEndian.Uint32(fullPacket2[:4])
 	if !decCipher2.IsValidHeader(hdrU32_2) {
 		fmt.Println("❌ 测试2 包头校验失败!")
@@ -171,7 +173,7 @@ func TestMain(t *testing.T) {
 		fmt.Println("❌ 测试3 数据不匹配!")
 		failed = true
 	}
-	fmt.Println()
+	fmt.Println(hex.Dump(decrypted3))
 
 	if failed {
 		fmt.Println("=== 有测试失败! ===")
