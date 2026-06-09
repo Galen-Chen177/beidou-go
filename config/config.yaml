@@ -7,11 +7,12 @@ database:
   host: "127.0.0.1"
   port: 3306
   user: "root"
-  password: ""
-  db_name: "beidou"
+  password: "123456"
+  db_name: "beidougo"
 
 login:
   port: 8484
+  auto_register: true  # 自动注册新账号（调试阶段开启）
 
 channel:
   port: 7575

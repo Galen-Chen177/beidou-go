@@ -5,6 +5,8 @@ import (
 	"beidou-go/internal/network"
 	"beidou-go/internal/server/channel"
 	"beidou-go/internal/server/login"
+	loginhandler "beidou-go/internal/server/login/handler"
+	"beidou-go/internal/store"
 	"context"
 	"fmt"
 	"os"
@@ -13,7 +15,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
-
 )
 
 func cmdServe() *cli.Command {
@@ -53,17 +54,30 @@ func runServe() error {
 	network.Log = log
 
 	// 初始化数据库
-	// if err := store.InitDB(cfg.Database); err != nil {
-	// 	return fmt.Errorf("数据库初始化失败: %w", err)
-	// }
-	// log.Info("数据库连接成功")
+	if err := store.InitDB(cfg.Database); err != nil {
+		return fmt.Errorf("数据库初始化失败: %w", err)
+	}
+	log.Info("数据库连接成功")
+
+	// 自动迁移表结构
+	if err := store.AutoMigrate(); err != nil {
+		return fmt.Errorf("数据库迁移失败: %w", err)
+	}
+	log.Info("数据库迁移完成")
+
+	// 创建 AccountStore
+	accountStore := store.NewAccountStore(store.DB())
+
+	// 创建登录相关组件
+	coordinator := login.NewSessionCoordinator()
+	authHandler := loginhandler.NewAuthHandler(accountStore, coordinator, cfg.Login.AutoRegister, log)
 
 	// 创建 TCP 服务器
 	tcpSrv := network.NewTCPServer(cfg.Server.Host)
 	log.Infof("TCP 引擎就绪")
 
 	// 启动登录服务器
-	loginSrv := login.NewServer(cfg, tcpSrv, log)
+	loginSrv := login.NewServer(cfg, tcpSrv, log, authHandler)
 	go func() {
 		if err := loginSrv.Start(); err != nil {
 			log.Fatalf("登录服务器启动失败: %v", err)

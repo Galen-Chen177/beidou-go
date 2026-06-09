@@ -1,6 +1,23 @@
 # 登陆处理 — Go 侧实现计划
 
+> **状态: ✅ 已完成 (2026-06-10)**
+>
+> 本计划中的全部 Step 已实现完毕，但实际文件组织与计划有出入：
+> - `internal/crypto/aes.go` → 实际拆分为 `internal/crypto/maple_crypto.go` + `crypto.go`
+> - `internal/server/login/login_server.go` → 路径不变，握手+路由已实现
+> - `internal/server/login/handler/auth.go` → 完整的认证处理器
+> - `internal/server/login/password.go` → bcrypt/SHA-1/SHA-512 兼容
+> - `internal/server/login/packet.go` → LoginStatus 封包构造
+> - `internal/server/login/session_coordinator.go` → 多开检测
+> - 下游 handler（ServerList/CharList/CharSelect/CharCreate）为 stub，待下一步实现
+>
+> **已知遗留问题**：`Session.SendPacket()` 中 `Encrypt()` 返回值被丢弃（Bug），见 README.md 当前进度。
+
+---
+
 ## Context
+
+> （以下为原始计划文档，保留作为历史记录）
 
 当前项目已搭建好骨架（TCP server、封包编解码、AES/OFB 加密、Session 管理、握手流程），需要实现第二阶段核心功能：**登陆认证**，让客户端能成功输入账号密码 → 看到角色列表。
 

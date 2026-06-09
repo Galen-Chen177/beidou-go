@@ -1,27 +1,36 @@
 package login
 
 import (
-	"beidou-go/config"
-	"beidou-go/internal/network"
-	"beidou-go/internal/network/codec"
+	"encoding/hex"
+	"fmt"
 	"io"
 
 	"github.com/sirupsen/logrus"
+
+	"beidou-go/config"
+	"beidou-go/internal/crypto"
+	"beidou-go/internal/network"
+	"beidou-go/internal/network/codec"
+	"beidou-go/internal/opcode"
 )
+
+var version = uint16(83) // 冒险岛 v83
 
 // Server 登录服务器
 type Server struct {
-	cfg    *config.Config
-	tcpSrv *network.TCPServer
-	log    *logrus.Logger
+	cfg     *config.Config
+	tcpSrv  *network.TCPServer
+	log     *logrus.Logger
+	handler PacketHandler
 }
 
 // NewServer 创建登录服务器
-func NewServer(cfg *config.Config, tcpSrv *network.TCPServer, log *logrus.Logger) *Server {
+func NewServer(cfg *config.Config, tcpSrv *network.TCPServer, log *logrus.Logger, handler PacketHandler) *Server {
 	return &Server{
-		cfg:    cfg,
-		tcpSrv: tcpSrv,
-		log:    log,
+		cfg:     cfg,
+		tcpSrv:  tcpSrv,
+		log:     log,
+		handler: handler,
 	}
 }
 
@@ -30,39 +39,26 @@ func (s *Server) Start() error {
 	return s.tcpSrv.Listen(s.cfg.Login.Port, s.handleConnection)
 }
 
-// GMS v0.83 服务端握手包（SERVER_HELLO），从 Java 服务端 Wireshark 抓包还原
-// 格式：[2字节长度 LE][2字节版本号][2字节子版本][4字节 sendIV][4字节 recvIV][2字节标志]
-// 握手阶段使用 2 字节包头（非加密），后续正常通信才切换到 4 字节包头 + AES
-var serverHello = []byte{
-	0x0E, 0x00, // 包体长度 14 (LE uint16)
-	0x53, 0x00, // 版本号 83 (LE uint16)
-	0x01, 0x00, // 子版本
-	0x31, 0x46, 0x72, 0x7A, // sendIV
-	0x60, 0x52, 0x30, 0x78, // recvIV
-	0xC1, 0x08, // 服务器标志
-}
-
 // handleConnection 处理客户端连接
 func (s *Server) handleConnection(sess *network.Session) {
 	defer sess.Close()
 
 	s.log.Infof("[Login] 新连接: %s (session_id=%d)", sess.RemoteAddr(), sess.ID())
 
-	// === 第 1 步：发送 SERVER_HELLO ===
+	// 1. 构建属于Session的加密解密器
+	myCrypto := crypto.NewCrypto(version)
+
+	// 2. 构建并发送SERVER_HELLO
 	// 冒险岛 v0.83 是服务端先发言，不发这个客户端会一直等
-	s.log.Infof("[Login] 发送 SERVER_HELLO: session_id=%d", sess.ID())
-	if s.log.IsLevelEnabled(logrus.DebugLevel) {
-		s.log.Debugf("[Login] SERVER_HELLO hex:\n%s", codec.HexDump(serverHello))
-	}
+	serverHello := myCrypto.GenServerHello()
+	logrus.Infof("[ServerHello] session_id=%d hex:\n%s", sess.ID(), codec.HexDump(serverHello))
 	if err := sess.Send(serverHello); err != nil {
 		s.log.Errorf("[Login] SERVER_HELLO 发送失败: session_id=%d, err=%v", sess.ID(), err)
 		return
 	}
 
-	// === 第 2 步：接收 CLIENT_HELLO ===
-	// 客户端收到 SERVER_HELLO 后会回应 CLIENT_HELLO（2 字节包头格式）
-	// 从 CLIENT_HELLO 中可以提取客户端的 IV，用于后续 AES 加解密
-	clientHello, err := readHandshakePacket(sess, s.log)
+	// 4. 接收并解密 CLIENT_HELLO（加密包，解密会使 recvCipher 的 IV 同步到正确状态）
+	clientHello, err := sess.ReadPacket()
 	if err != nil {
 		if err == io.EOF {
 			s.log.Infof("[Login] 客户端在握手阶段断开: session_id=%d", sess.ID())
@@ -71,12 +67,16 @@ func (s *Server) handleConnection(sess *network.Session) {
 		}
 		return
 	}
-	s.log.Infof("[Login] 收到 CLIENT_HELLO: session_id=%d, len=%d", sess.ID(), len(clientHello))
+	s.log.Infof("[Login] 收到 CLIENT_HELLO (加密): session_id=%d, len=%d hex:\n%s", sess.ID(), len(clientHello), codec.HexDump(clientHello))
 
-	// TODO: 从 CLIENT_HELLO 提取客户端 IV，初始化 MapleCrypto
-	// 后续正常通信使用 sess.ReadPacket() / sess.SendPacket()
+	decryptedHello, err := myCrypto.Decrypt(clientHello)
+	if err != nil {
+		s.log.Errorf("[Login] CLIENT_HELLO 解密失败: session_id=%d, err=%v", sess.ID(), err)
+		return
+	}
+	s.log.Infof("[Login] CLIENT_HELLO 解密后 (%d bytes):\n%s", len(decryptedHello), hex.Dump(decryptedHello))
 
-	// === 第 3 步：循环读取后续封包（正常加密通信阶段） ===
+	// 5. 正常通信
 	for {
 		packet, err := sess.ReadPacket()
 		if err != nil {
@@ -87,28 +87,78 @@ func (s *Server) handleConnection(sess *network.Session) {
 			}
 			return
 		}
+		s.log.Debugf("[Sess %d] === RECV raw (%d bytes) ===\n%s", sess.ID(), len(packet), codec.HexDump(packet))
+		decrypted, err := myCrypto.Decrypt(packet)
+		if err != nil {
+			s.log.Errorf("[Login] 解密失败: session_id=%d, err=%v", sess.ID(), err)
+			return
+		}
+		s.log.Debugf("[Sess %d] === RECV decrypted (%d bytes) ===\n%s", sess.ID(), len(decrypted), hex.Dump(decrypted))
+		opcode := uint16(decrypted[0]) | uint16(decrypted[1])<<8
+		s.log.Infof("[Login] opcode=0x%04X session_id=%d", opcode, sess.ID())
+		data := decrypted[2:]
 
-		s.log.Infof("[Login] 收到封包: session_id=%d, opcode=0x%04X, dataLen=%d",
-			sess.ID(), packet.Opcode, len(packet.Data))
-
-		// TODO: 根据 opcode 分发到具体 handler
+		// 根据 opcode 分发到具体 handler
+		s.dispatch(sess, &codec.Packet{
+			Opcode: opcode,
+			Data:   data,
+		})
 	}
 }
 
-// readHandshakePacket 读取握手阶段的 CLIENT_HELLO（无包头，不定长，不加密）
-//
-// 用 bufio 逐字节试探读取，读到 2 字节后检查是否为合法长度头；
-// 如果不是，继续读到超时或封包结束，把所有字节原样返回。
-func readHandshakePacket(sess *network.Session, log *logrus.Logger) ([]byte, error) {
-	// 先用一个较大的缓冲一次性读（CLIENT_HELLO 通常只有几字节，TCP 会整包送达）
-	buf := make([]byte, 512)
-	n, err := sess.Read(buf)
-	if err != nil {
-		return nil, err
+// dispatch 根据 opcode 路由到对应的 handler
+// 在这里先解析成能看的懂的数据，然后调用具体的业务逻辑
+func (s *Server) dispatch(sess *network.Session, packet *codec.Packet) {
+	switch packet.Opcode {
+	// 密码验证 (0x01)
+	case opcode.LoginCheckPassword:
+		pos := 0
+
+		if len(packet.Data) >= 2 {
+			nameLen := int(packet.Data[0]) | int(packet.Data[1])<<8
+			fmt.Printf("账号名长度: %d\n", nameLen)
+			pos += 2
+			if pos+nameLen <= len(packet.Data) {
+				fmt.Printf("账号名: %q\n", string(packet.Data[pos:pos+nameLen]))
+				pos += nameLen
+			}
+		}
+
+		if pos+2 <= len(packet.Data) {
+			pwdLen := int(packet.Data[pos]) | int(packet.Data[pos+1])<<8
+			fmt.Printf("密码长度: %d\n", pwdLen)
+			pos += 2
+			if pos+pwdLen <= len(packet.Data) {
+				fmt.Printf("密码: %q\n", string(packet.Data[pos:pos+pwdLen]))
+				pos += pwdLen
+			}
+		}
+
+		s.handler.HandleCheckPassword(sess, packet.Data)
+
+	case opcode.LoginServerListRereq:
+		// 重新请求服务器列表 (0x04)
+		s.handler.HandleServerList(sess)
+
+	case opcode.LoginCharListReq:
+		// 请求角色列表 (0x05)
+		if len(packet.Data) >= 1 {
+			s.handler.HandleCharList(sess, packet.Data[0])
+		}
+
+	case opcode.LoginCharSelect:
+		// 选择角色进入游戏 (0x13)
+		if len(packet.Data) >= 4 {
+			charID := int32(packet.Data[0]) | int32(packet.Data[1])<<8 |
+				int32(packet.Data[2])<<16 | int32(packet.Data[3])<<24
+			s.handler.HandleCharSelect(sess, charID)
+		}
+
+	case opcode.LoginCharCreate:
+		// 创建角色 (0x16)
+		s.handler.HandleCharCreate(sess, packet.Data)
+
+	default:
+		s.log.Warnf("[Login] 未处理的 opcode: session_id=%d, opcode=0x%04X", sess.ID(), packet.Opcode)
 	}
-
-	data := buf[:n]
-	log.Infof("[Login] CLIENT_HELLO raw (%d bytes):\n%s", n, codec.HexDump(data))
-
-	return data, nil
 }

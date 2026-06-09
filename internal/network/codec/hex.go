@@ -30,7 +30,7 @@ func HexDump(data []byte) string {
 		sb.WriteString(fmt.Sprintf("  %08X  ", i))
 
 		// Hex 部分（中间多一个空格分隔）
-		for j := 0; j < 16; j++ {
+		for j := range 16 {
 			if j == 8 {
 				sb.WriteString(" ")
 			}
@@ -43,7 +43,7 @@ func HexDump(data []byte) string {
 
 		// ASCII 可读部分
 		sb.WriteString(" |")
-		for j := 0; j < 16; j++ {
+		for j := range 16 {
 			if i+j < len(data) {
 				b := data[i+j]
 				if b >= 32 && b < 127 {

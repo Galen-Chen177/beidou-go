@@ -611,14 +611,39 @@ func (e *Engine) setupBindings(vm *goja.Runtime, c *Client) {
 
 ## 9. 当前进度
 
-- [x] 2026-06-03: 创建 README，制定迁移计划
-- [ ] 第一期：骨架搭建
-- [ ] 第二期：登录与角色选择
-- [ ] 第三期：基础游戏体验
-- [ ] 第四期：核心玩法系统
-- [ ] 第五期：商城与社交
-- [ ] 第六期：管理后台 API
-- [ ] 第七期：完善与优化
+> 最后更新: 2026-06-10
+
+### 第一期：骨架搭建 ✅ 基本完成
+
+- [x] 初始化 Go module 和项目目录结构
+- [x] 实现封包编解码 (`internal/network/codec/`)
+- [x] 实现 AES + 自定义混淆加解密 (`internal/crypto/`)，有真实抓包数据验证的测试用例
+- [x] 实现 TCP Server 和 Session 管理 (`internal/network/`)
+- [x] 实现 opcode 常量定义 (`internal/opcode/`)
+- [x] 编写 Makefile
+- [x] 配置文件支持（urfave/cli/v3 + yaml.v3）
+- [x] 数据库连接 + gorm AutoMigrate (`internal/store/`)
+- [x] 数据模型: Account, Character, Item, Skill (`internal/model/`)
+
+**里程碑**: 客户端能建立连接，SERVER_HELLO → CLIENT_HELLO 握手成功，加密通道建立 ✅
+
+### 第二期：登录与角色选择 🔄 进行中
+
+- [x] SERVER_HELLO 握手（服务端先发言，明文交换 IV）
+- [x] CLIENT_HELLO 解密 + IV 同步
+- [x] 账号密码认证（bcrypt / SHA-1 / SHA-512 三种 hash 格式兼容）
+- [x] 自动注册（`auto_register` 配置项）
+- [x] 封禁检测 / 旧 hash 自动迁移到 bcrypt / 多开检测
+- [x] LoginStatus 成功/失败响应封包构造
+- [ ] 服务器列表响应 (HandleServerList)
+- [ ] 角色列表 (HandleCharList)
+- [ ] 角色创建 (HandleCharCreate)
+- [ ] 角色选择进入游戏 (HandleCharSelect → Channel Server)
+- [ ] 频道服务器握手（Channel 侧 SERVER_HELLO 流程）
+
+**已知 Bug**: `SendPacket()` 中 `s.crypto.Encrypt(body)` 返回值被丢弃，响应包实际以明文发送，需要修
+
+### 第三～七期：尚未开始
 
 ---
 
@@ -628,9 +653,9 @@ func (e *Engine) setupBindings(vm *goja.Runtime, c *Client) {
 
 ### 10.1 待确认的技术细节
 
-- [ ] **GMS v0.83 的加密方案**：确认是 AES/OFB 还是 AES/ECB，Shanda 加密是否还在使用
-- [ ] **封包格式**：确认包头 4 字节是包体长度还是包总长度，是大端还是小端
-- [ ] **握手流程**：完整的 client hello / server hello 流程和 IV 协商机制
+- [x] **GMS v0.83 的加密方案**（2026-06-10 确认）：AES-256-OFB 流密码 + 外层 6 轮自定义混淆（EncryptData/DecryptData），见 `internal/crypto/maple_crypto.go`。Shanda 加密在该版本已淘汰，不再使用。
+- [x] **封包格式**（2026-06-10 确认）：4 字节包头用 IV 编码（含版本号校验位和 XOR 混淆后的包体长度），不是简单的大端/小端长度。包头编码逻辑见 `EncodePacketHeader()`，解码见 `DecodePacketLength()`。
+- [x] **握手流程**（2026-06-10 确认）：服务端先发言，发 16 字节明文 SERVER_HELLO（含 sendIV + recvIV）→ 客户端回 CLIENT_HELLO（加密，6 字节 = 4B header + 2B body）→ 后续所有通信加密。详见 `internal/crypto/crypto.go` 的 `GenServerHello()`。
 - [ ] **WZ 数据解析**：现有的 wz-zh-CN/ 目录数据格式是什么（XML? JSON?），Go 如何加载
 
 ### 10.2 可以后续再决定的
@@ -693,4 +718,4 @@ func Load(path string) (*Config, error) {
 
 ---
 
-*最后更新: 2026-06-03*
+*最后更新: 2026-06-10*

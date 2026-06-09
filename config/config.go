@@ -40,7 +40,8 @@ func (d DatabaseConfig) DSN() string {
 
 // LoginConfig 登录服务器配置
 type LoginConfig struct {
-	Port int `yaml:"port"` // 监听端口（默认 8484）
+	Port         int  `yaml:"port"`          // 监听端口（默认 8484）
+	AutoRegister bool `yaml:"auto_register"` // 是否自动注册新账号（默认 true）
 }
 
 // ChannelConfig 频道服务器配置
@@ -70,7 +71,8 @@ func Default() *Config {
 			DBName:   "beidou",
 		},
 		Login: LoginConfig{
-			Port: 8484,
+			Port:         8484,
+			AutoRegister: true,
 		},
 		Channel: ChannelConfig{
 			Port:       7575,

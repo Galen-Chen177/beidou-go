@@ -16,7 +16,7 @@ type Engine struct {
 func NewEngine() *Engine {
 	return &Engine{
 		pool: sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				return goja.New()
 			},
 		},
@@ -66,6 +66,6 @@ func (b *Bindings) SetPI() {
 }
 
 // Set 注入任意 Go 对象到 JS 运行时
-func (b *Bindings) Set(name string, obj interface{}) {
+func (b *Bindings) Set(name string, obj any) {
 	b.vm.Set(name, obj)
 }

@@ -7,23 +7,23 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"beidou-go/internal/crypto"
 	"beidou-go/internal/network/codec"
-
-	"github.com/sirupsen/logrus"
 )
 
 // Session 客户端会话，封装一个 TCP 连接
 type Session struct {
 	id     uint32
 	conn   net.Conn
-	crypto *crypto.MapleCrypto
+	crypto *crypto.MyCrypto
 	server *TCPServer
 	mu     sync.Mutex
 	closed bool
 
 	// 关联的账号/角色信息（登录后填充）
-	AccountID int32
+	AccountID uint64
 	CharID    int32
 	WorldID   byte
 	ChannelID byte
@@ -45,7 +45,7 @@ func (s *Session) ID() uint32 {
 }
 
 // SetCrypto 设置加解密器（握手完成后调用）
-func (s *Session) SetCrypto(c *crypto.MapleCrypto) {
+func (s *Session) SetCrypto(c *crypto.MyCrypto) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.crypto = c
@@ -54,9 +54,10 @@ func (s *Session) SetCrypto(c *crypto.MapleCrypto) {
 }
 
 // Crypto 返回加解密器
-func (s *Session) Crypto() *crypto.MapleCrypto {
+func (s *Session) Crypto() *crypto.MyCrypto {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	return s.crypto
 }
 
@@ -113,22 +114,16 @@ func (s *Session) SetDeadline(t time.Time) error {
 	return s.conn.SetDeadline(t)
 }
 
-// ──────────────────────────────────────────────
-// 封包级收发（带 hex dump 日志，对标 Wireshark）
-// ──────────────────────────────────────────────
-
-// ReadPacket 读取一个完整封包，自动解密（如果已完成握手），并在 Debug 级别输出 hex dump。
-//
-//	TCP 字节 → [RECV raw] → 解密 → [RECV decrypted] → opcode + data
-//
-// 用法：在 handler goroutine 中循环调用，直到 io.EOF。
-func (s *Session) ReadPacket() (*codec.Packet, error) {
+// ReadPacket 读取一个完整的包
+func (s *Session) ReadPacket() ([]byte, error) {
 	// 1. 读 4 字节包头（不加密）
 	header := make([]byte, 4)
 	if _, err := io.ReadFull(s.conn, header); err != nil {
 		return nil, err
 	}
-	bodyLen := binary.LittleEndian.Uint32(header)
+	logrus.Infof("ReadPacket header:[%v]", header)
+	bodyLen := decodePacketLength(header)
+	logrus.Infof("ReadPacket bodylen:[%v]", bodyLen)
 
 	// 2. 读包体（可能处于加密状态）
 	body := make([]byte, bodyLen)
@@ -137,31 +132,14 @@ func (s *Session) ReadPacket() (*codec.Packet, error) {
 	}
 
 	// 3. 打印原始字节 → 和 Wireshark 抓到的 TCP payload 完全一致
-	if Log.IsLevelEnabled(logrus.DebugLevel) {
-		Log.Debugf("[Sess %d] === RECV raw (%d bytes) ===\n%s", s.id, bodyLen, codec.HexDump(body))
-	}
+	Log.Debugf("[Sess %d] === RECV raw (%d bytes) ===\n%s", s.id, bodyLen, codec.HexDump(body))
+	return append(header, body...), nil
+}
 
-	// 4. 解密（AES/OFB 流解密，就地修改）
-	if s.crypto != nil {
-		s.crypto.Decrypt(body)
-		if Log.IsLevelEnabled(logrus.DebugLevel) {
-			Log.Debugf("[Sess %d] --- RECV decrypted ---\n%s", s.id, codec.HexDump(body))
-		}
-	}
-
-	// 5. 解析 opcode（2 字节小端序）
-	if len(body) < 2 {
-		return &codec.Packet{Opcode: 0, Data: body}, nil
-	}
-	opcode := binary.LittleEndian.Uint16(body[:2])
-
-	// Info 级别始终输出封包摘要（不需要开 Debug 也能看到）
-	Log.Infof("[Sess %d] RECV opcode=0x%04X  dataLen=%d", s.id, opcode, len(body)-2)
-	if Log.IsLevelEnabled(logrus.DebugLevel) {
-		Log.Debugf("[Sess %d] RECV hex dump:\n%s", s.id, codec.HexDump(body))
-	}
-
-	return &codec.Packet{Opcode: opcode, Data: body[2:]}, nil
+func decodePacketLength(header []byte) int {
+	hi := int(header[1] ^ header[3]) // Java: header[1] ^ header[3]
+	lo := int(header[0] ^ header[2]) // Java: header[0] ^ header[2]
+	return (hi << 8) | lo
 }
 
 // SendPacket 编码、加密（如果已完成握手）、发送封包，并在 Debug 级别输出 hex dump。
