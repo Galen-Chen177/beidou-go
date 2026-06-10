@@ -88,11 +88,3 @@ func (w *Writer) Packet() *Packet {
 	return &Packet{Opcode: opcode, Data: w.buf[2:]}
 }
 
-// EncodePacket 将封包装换为网络传输格式 [header: 4B 小端 = body 长度] [body]
-func EncodePacket(p *Packet) []byte {
-	body := p.Bytes()
-	out := make([]byte, 4+len(body))
-	binary.LittleEndian.PutUint32(out[:4], uint32(len(body)))
-	copy(out[4:], body)
-	return out
-}

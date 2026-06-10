@@ -17,9 +17,9 @@ func NewRouter() *gin.Engine {
 	v1 := r.Group("/api/v1")
 	{
 		// 账号管理
-		v1.GET("/accounts", listAccounts)       // 账号列表
-		v1.POST("/accounts", createAccount)     // 创建账号
-		v1.PUT("/accounts/:id", updateAccount)  // 更新账号
+		v1.GET("/accounts", listAccounts)         // 账号列表
+		v1.POST("/accounts", createAccount)       // 创建账号
+		v1.PUT("/accounts/:id", updateAccount)    // 更新账号
 		v1.DELETE("/accounts/:id", deleteAccount) // 删除账号
 
 		// 角色管理
@@ -36,7 +36,7 @@ func NewRouter() *gin.Engine {
 // TODO: 实现以下 API handler
 
 func listAccounts(c *gin.Context) {
-	c.JSON(200, gin.H{"accounts": []interface{}{}})
+	c.JSON(200, gin.H{"accounts": []any{}})
 }
 
 func createAccount(c *gin.Context) {
@@ -52,7 +52,7 @@ func deleteAccount(c *gin.Context) {
 }
 
 func listCharacters(c *gin.Context) {
-	c.JSON(200, gin.H{"characters": []interface{}{}})
+	c.JSON(200, gin.H{"characters": []any{}})
 }
 
 func updateCharacter(c *gin.Context) {
@@ -61,9 +61,9 @@ func updateCharacter(c *gin.Context) {
 
 func serverInfo(c *gin.Context) {
 	c.JSON(200, gin.H{
-		"name":       "BeiDou-Go",
-		"version":    "GMS v0.83",
-		"status":     "running",
-		"online":     0,
+		"name":    "BeiDou-Go",
+		"version": "GMS v0.83",
+		"status":  "running",
+		"online":  0,
 	})
 }

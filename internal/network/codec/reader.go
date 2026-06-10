@@ -2,7 +2,6 @@ package codec
 
 import (
 	"encoding/binary"
-	"io"
 )
 
 // Reader 封包读取器，从 []byte 中顺序读取各类型数据
@@ -74,12 +73,6 @@ func (r *Reader) ReadBytes(n int) []byte {
 	return b
 }
 
-// ReadMapleString 读取 Maple 风格字符串：2 字节长度 + ASCII 内容
-// 已废弃，使用 ReadString 即可
-func (r *Reader) ReadMapleString() string {
-	return r.ReadString()
-}
-
 // ReadPos 读取位置坐标：[x: 2B][y: 2B]
 func (r *Reader) ReadPos() (x, y int16) {
 	x = int16(r.ReadShort())
@@ -95,28 +88,4 @@ func (r *Reader) Skip(n int) {
 // Remaining 返回剩余可读字节数
 func (r *Reader) Remaining() int {
 	return len(r.buf) - r.pos
-}
-
-// ReadFrom 从 io.Reader 读取完整封包（处理 TCP 粘包拆包）
-// header: 4 字节小端序 = 包体长度
-func ReadFrom(conn io.Reader) (*Packet, error) {
-	// 读 4 字节包头
-	header := make([]byte, 4)
-	if _, err := io.ReadFull(conn, header); err != nil {
-		return nil, err
-	}
-	bodyLen := binary.LittleEndian.Uint32(header)
-
-	// 读包体
-	body := make([]byte, bodyLen)
-	if _, err := io.ReadFull(conn, body); err != nil {
-		return nil, err
-	}
-
-	// 解析 opcode
-	if len(body) < 2 {
-		return &Packet{Opcode: 0, Data: body}, nil
-	}
-	opcode := binary.LittleEndian.Uint16(body[:2])
-	return &Packet{Opcode: opcode, Data: body[2:]}, nil
 }
