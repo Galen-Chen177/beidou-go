@@ -17,7 +17,7 @@ import (
 type Session struct {
 	id     uint32
 	conn   net.Conn
-	crypto *crypto.MyCrypto
+	crypto crypto.Crypto
 	server *TCPServer
 	mu     sync.Mutex
 	closed bool
@@ -45,7 +45,7 @@ func (s *Session) ID() uint32 {
 }
 
 // SetCrypto 设置加解密器（握手完成后调用）
-func (s *Session) SetCrypto(c *crypto.MyCrypto) {
+func (s *Session) SetCrypto(c crypto.Crypto) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.crypto = c
@@ -54,7 +54,7 @@ func (s *Session) SetCrypto(c *crypto.MyCrypto) {
 }
 
 // Crypto 返回加解密器
-func (s *Session) Crypto() *crypto.MyCrypto {
+func (s *Session) Crypto() crypto.Crypto {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -70,17 +70,6 @@ func (s *Session) RemoteAddr() string {
 func (s *Session) Send(data []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, err := s.conn.Write(data)
-	return err
-}
-
-// SendEncrypted 加密后发送
-func (s *Session) SendEncrypted(data []byte) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.crypto != nil {
-		s.crypto.Encrypt(data)
-	}
 	_, err := s.conn.Write(data)
 	return err
 }
@@ -146,6 +135,7 @@ func decodePacketLength(header []byte) int {
 //
 //	opcode+data → [SEND plain] → 加密 → [SEND encrypted] → TCP 字节
 func (s *Session) SendPacket(p *codec.Packet) error {
+	var err error
 	// 1. 编码为包体：[opcode:2B][data]
 	body := p.Bytes()
 
@@ -161,7 +151,10 @@ func (s *Session) SendPacket(p *codec.Packet) error {
 
 	// 2. 加密
 	if s.crypto != nil {
-		s.crypto.Encrypt(body)
+		body, err = s.crypto.Encrypt(body)
+		if err != nil {
+			return err
+		}
 		if Log.IsLevelEnabled(logrus.DebugLevel) {
 			Log.Debugf("[Sess %d] --- SEND encrypted ---\n%s", s.id, codec.HexDump(body))
 		}
@@ -172,6 +165,6 @@ func (s *Session) SendPacket(p *codec.Packet) error {
 	binary.LittleEndian.PutUint32(out[:4], uint32(len(body)))
 	copy(out[4:], body)
 
-	_, err := s.conn.Write(out)
+	_, err = s.conn.Write(out)
 	return err
 }

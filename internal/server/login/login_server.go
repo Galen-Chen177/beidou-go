@@ -47,6 +47,7 @@ func (s *Server) handleConnection(sess *network.Session) {
 
 	// 1. 构建属于Session的加密解密器
 	myCrypto := crypto.NewCrypto(version)
+	sess.SetCrypto(myCrypto)
 
 	// 2. 构建并发送SERVER_HELLO
 	// 冒险岛 v0.83 是服务端先发言，不发这个客户端会一直等
@@ -113,6 +114,8 @@ func (s *Server) dispatch(sess *network.Session, packet *codec.Packet) {
 	// 密码验证 (0x01)
 	case opcode.LoginCheckPassword:
 		pos := 0
+		username := ""
+		password := ""
 
 		if len(packet.Data) >= 2 {
 			nameLen := int(packet.Data[0]) | int(packet.Data[1])<<8
@@ -120,6 +123,7 @@ func (s *Server) dispatch(sess *network.Session, packet *codec.Packet) {
 			pos += 2
 			if pos+nameLen <= len(packet.Data) {
 				fmt.Printf("账号名: %q\n", string(packet.Data[pos:pos+nameLen]))
+				username = string(packet.Data[pos : pos+nameLen])
 				pos += nameLen
 			}
 		}
@@ -130,11 +134,12 @@ func (s *Server) dispatch(sess *network.Session, packet *codec.Packet) {
 			pos += 2
 			if pos+pwdLen <= len(packet.Data) {
 				fmt.Printf("密码: %q\n", string(packet.Data[pos:pos+pwdLen]))
+				password = string(packet.Data[pos : pos+pwdLen])
 				pos += pwdLen
 			}
 		}
 
-		s.handler.HandleCheckPassword(sess, packet.Data)
+		s.handler.HandleCheckPassword(sess, username, password)
 
 	case opcode.LoginServerListRereq:
 		// 重新请求服务器列表 (0x04)

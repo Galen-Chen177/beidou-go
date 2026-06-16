@@ -9,7 +9,7 @@ import "beidou-go/internal/network"
 //	login_server.go 使用此接口 → 不依赖 handler 包
 //	handler/auth.go 实现此接口 → 可以 import login 包
 type PacketHandler interface {
-	HandleCheckPassword(sess *network.Session, data []byte)
+	HandleCheckPassword(sess *network.Session, username, password string)
 	HandleServerList(sess *network.Session)
 	HandleCharList(sess *network.Session, worldID byte)
 	HandleCharCreate(sess *network.Session, data []byte)
