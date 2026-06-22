@@ -23,7 +23,7 @@ type Session struct {
 	closed bool
 
 	// 关联的账号/角色信息（登录后填充）
-	AccountID uint64
+	AccountID uint
 	CharID    int32
 	WorldID   byte
 	ChannelID byte

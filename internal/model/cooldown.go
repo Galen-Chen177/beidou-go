@@ -1,17 +1,12 @@
 package model
 
 import (
-	"time"
-
 	"gorm.io/gorm"
 )
 
 // Cooldown 对应表 cooldowns
 type Cooldown struct {
-	ID        uint64         `gorm:"primaryKey;type:bigint;comment:自增长id"`
-	CreatedAt *time.Time     `json:"createdAt"`
-	UpdatedAt *time.Time     `json:"-"`
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	gorm.Model
 
 	Charid    int   `gorm:"column:charid" json:"charid,omitempty"`
 	Skillid   int   `gorm:"column:skillid" json:"skillid,omitempty"`

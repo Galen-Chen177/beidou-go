@@ -8,14 +8,11 @@ import (
 
 // Character 对应表 characters
 type Character struct {
-	ID        uint64         `gorm:"primaryKey;type:bigint;comment:自增长id"`
-	CreatedAt *time.Time     `json:"createdAt"`
-	UpdatedAt *time.Time     `json:"-"`
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	gorm.Model
 
 	Accountid            int       `gorm:"column:accountid" json:"accountid,omitempty"`
 	World                int       `gorm:"column:world" json:"world,omitempty"`
-	Name                 string    `gorm:"column:name" json:"name,omitempty"`
+	Name                 string    `gorm:"column:name;type:varchar(200)" json:"name,omitempty"`
 	Level                int       `gorm:"column:level" json:"level,omitempty"`
 	Exp                  int       `gorm:"column:exp" json:"exp,omitempty"`
 	Gachaexp             int       `gorm:"column:gachaexp" json:"gachaexp,omitempty"`
@@ -37,7 +34,7 @@ type Character struct {
 	Hair                 int       `gorm:"column:hair" json:"hair,omitempty"`
 	Face                 int       `gorm:"column:face" json:"face,omitempty"`
 	Ap                   int       `gorm:"column:ap" json:"ap,omitempty"`
-	Sp                   string    `gorm:"column:sp" json:"sp,omitempty"`
+	Sp                   string    `gorm:"column:sp;type:varchar(200)" json:"sp,omitempty"`
 	Map                  int       `gorm:"column:map" json:"map,omitempty"`
 	Spawnpoint           int       `gorm:"column:spawnpoint" json:"spawnpoint,omitempty"`
 	Gm                   int       `gorm:"column:gm" json:"gm,omitempty"`
@@ -81,7 +78,7 @@ type Character struct {
 	MarriageItemId       int       `gorm:"column:marriageItemId" json:"marriageItemId,omitempty"`
 	Reborns              int       `gorm:"column:reborns" json:"reborns,omitempty"`
 	Pqpoints             int       `gorm:"column:pqpoints" json:"pqpoints,omitempty"`
-	DataString           string    `gorm:"column:dataString" json:"dataString,omitempty"`
+	DataString           string    `gorm:"column:dataString;type:varchar(200)" json:"dataString,omitempty"`
 	LastLogoutTime       time.Time `gorm:"column:lastLogoutTime" json:"lastLogoutTime,omitempty"`
 	LastExpGainTime      time.Time `gorm:"column:lastExpGainTime" json:"lastExpGainTime,omitempty"`
 	PartySearch          bool      `gorm:"column:partySearch" json:"partySearch,omitempty"`

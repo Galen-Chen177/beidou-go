@@ -8,20 +8,17 @@ import (
 
 // GachaponRewardPool 实体映射
 type GachaponRewardPool struct {
-	ID        uint64         `gorm:"primaryKey;type:bigint;comment:自增长id"`
-	CreatedAt *time.Time `json:"createdAt"`
-	UpdatedAt *time.Time `json:"-"`
-	DeletedAt gorm.DeletedAt `gorm:"index"`
-	Name         string         `json:"name,omitempty"`
-	GachaponId   *int           `json:"gachaponId,omitempty"`
-	GachaponName string         `gorm:"-" json:"gachaponName,omitempty"`
-	Weight       *int           `json:"weight,omitempty"`
-	IsPublic     *bool          `json:"isPublic,omitempty"`
-	Prob         *int           `json:"prob,omitempty"`
-	StartTime    time.Time      `json:"startTime,omitempty"`
-	EndTime      time.Time      `json:"endTime,omitempty"`
-	Notification *bool          `json:"notification,omitempty"`
-	Comment      string         `json:"comment,omitempty"`
+	gorm.Model
+	Name         string    `gorm:"column:name;type:varchar(200)" json:"name,omitempty"`
+	GachaponId   *int      `json:"gachaponId,omitempty"`
+	GachaponName string    `gorm:"-" json:"gachaponName,omitempty"`
+	Weight       *int      `json:"weight,omitempty"`
+	IsPublic     *bool     `json:"isPublic,omitempty"`
+	Prob         *int      `json:"prob,omitempty"`
+	StartTime    time.Time `json:"startTime,omitempty"`
+	EndTime      time.Time `json:"endTime,omitempty"`
+	Notification *bool     `json:"notification,omitempty"`
+	Comment      string    `gorm:"column:comment;type:varchar(200)" json:"comment,omitempty"`
 }
 
 func (GachaponRewardPool) TableName() string {

@@ -32,6 +32,7 @@
 | 项目 | BeiDou-Server |
 |---|---|
 | 仓库 | https://github.com/BeiDouMS/BeiDou-Server |
+| 本地路径 | `D:\chj\project\golang\BeiDou-Server\` |
 | 版本 | GMS v0.83 |
 | 语言 | Java 36% + JavaScript 61.5% + Vue 1.7% + TypeScript 0.8% |
 | 构建 | Maven (Java 21) |
@@ -705,7 +706,7 @@ func Load(path string) (*Config, error) {
 
 ## 附录：参考资料
 
-- [BeiDouMS/BeiDou-Server](https://github.com/BeiDouMS/BeiDou-Server) — 原始 Java 项目
+- [BeiDouMS/BeiDou-Server](https://github.com/BeiDouMS/BeiDou-Server) — 原始 Java 项目 (本地: `D:\chj\project\golang\BeiDou-Server\`)
 - [P0nk/Cosmic](https://github.com/P0nk/Cosmic) — BeiDou 的上游项目
 - [urfave/cli/v3](https://github.com/urfave/cli) — CLI 框架
 - [gopkg.in/yaml.v3](https://gopkg.in/yaml.v3) — YAML 解析

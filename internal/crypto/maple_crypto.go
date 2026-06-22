@@ -48,13 +48,13 @@ func randomByte() byte {
 // genSendIV 生成服务端发送方向的 IV（服务端加密 → 客户端解密）。
 // Java: {82, 48, 120, randomByte} → ASCII "R0x" + 随机字节
 func genSendIV() []byte {
-	return []byte{82, 48, 120, 193}
+	return []byte{82, 48, 120, 37}
 }
 
 // genRecvIV 生成服务端接收方向的 IV（客户端加密 → 服务端解密）。
 // Java: {70, 114, 122, randomByte} → ASCII "Frz" + 随机字节
 func genRecvIV() []byte {
-	return []byte{70, 114, 122, 96}
+	return []byte{70, 114, 122, 233}
 }
 
 // =============================================================================

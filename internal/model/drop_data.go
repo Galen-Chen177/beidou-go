@@ -1,17 +1,12 @@
 package model
 
 import (
-	"time"
-
 	"gorm.io/gorm"
 )
 
 // DropData 对应表 drop_data
 type DropData struct {
-	ID        uint64         `gorm:"primaryKey;type:bigint;comment:自增长id"`
-	CreatedAt *time.Time     `json:"createdAt"`
-	UpdatedAt *time.Time     `json:"-"`
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	gorm.Model
 
 	Dropperid       int `gorm:"column:dropperid" json:"dropperid,omitempty"`
 	Itemid          int `gorm:"column:itemid" json:"itemid,omitempty"`

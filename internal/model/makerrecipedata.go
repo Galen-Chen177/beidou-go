@@ -1,20 +1,15 @@
 package model
 
 import (
-	"time"
-
 	"gorm.io/gorm"
 )
 
 // Makerrecipedata 对应表 makerrecipedata (复合主键：itemid + reqItem)
 type Makerrecipedata struct {
-	ID        uint64         `gorm:"primaryKey;type:bigint;comment:自增长id"`
-	CreatedAt *time.Time `json:"createdAt"`
-	UpdatedAt *time.Time `json:"-"`
-	DeletedAt gorm.DeletedAt `gorm:"index"`
-	Itemid    int            `gorm:"column:itemid" json:"itemid"`
-	ReqItem   int            `gorm:"column:reqItem" json:"reqItem"`
-	Count     int            `gorm:"column:count" json:"count"`
+	gorm.Model
+	Itemid  int `gorm:"column:itemid" json:"itemid"`
+	ReqItem int `gorm:"column:reqItem" json:"reqItem"`
+	Count   int `gorm:"column:count" json:"count"`
 }
 
 func (Makerrecipedata) TableName() string {

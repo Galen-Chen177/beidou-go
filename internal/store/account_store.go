@@ -45,8 +45,9 @@ func (s *AccountStore) Create(name, passwordHash string) (*model.Account, error)
 		Characterslots: 3,    // 默认 3 个角色槽位
 		Tos:            true, // 自动注册视为已同意
 		Language:       0,
-		CreatedAt:      &now,
 		Lastlogin:      now,
+		Birthday:       now,
+		Tempban:        now,
 	}
 	result := s.db.Create(account)
 	if result.Error != nil {
@@ -56,11 +57,11 @@ func (s *AccountStore) Create(name, passwordHash string) (*model.Account, error)
 }
 
 // UpdatePassword 更新账号密码 hash（用于旧格式迁移到 bcrypt）
-func (s *AccountStore) UpdatePassword(id uint64, hash string) error {
+func (s *AccountStore) UpdatePassword(id uint, hash string) error {
 	return s.db.Model(&model.Account{}).Where("id = ?", id).Update("password", hash).Error
 }
 
 // UpdateLastLogin 更新最后登录时间
-func (s *AccountStore) UpdateLastLogin(id uint64, t time.Time) error {
+func (s *AccountStore) UpdateLastLogin(id uint, t time.Time) error {
 	return s.db.Model(&model.Account{}).Where("id = ?", id).Update("lastlogin", t).Error
 }
