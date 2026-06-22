@@ -40,6 +40,7 @@ func runServe() error {
 	log.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp:   true,
 		TimestampFormat: "2006-01-02 15:04:05",
+		DisableQuote:    true, // 允许 hex dump 中的 \n 正常换行
 	})
 	if cfg.Server.LogFile != "" {
 		f, err := os.OpenFile(cfg.Server.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)

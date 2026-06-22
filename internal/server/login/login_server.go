@@ -52,7 +52,7 @@ func (s *Server) handleConnection(sess *network.Session) {
 	// 2. 构建并发送SERVER_HELLO
 	// 冒险岛 v0.83 是服务端先发言，不发这个客户端会一直等
 	serverHello := myCrypto.GenServerHello()
-	logrus.Infof("[ServerHello] session_id=%d hex:\n%s", sess.ID(), codec.HexDump(serverHello))
+	s.log.Infof("[ServerHello] session_id=%d hex:\n%s", sess.ID(), codec.HexDump(serverHello))
 	if err := sess.Send(serverHello); err != nil {
 		s.log.Errorf("[Login] SERVER_HELLO 发送失败: session_id=%d, err=%v", sess.ID(), err)
 		return
