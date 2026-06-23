@@ -8,7 +8,7 @@ import (
 type ModifiedCashItem struct {
 	gorm.Model
 	Sn              int   `gorm:"column:sn" json:"sn"`
-	ItemId          int   `gorm:"column:itemId" json:"itemId"`
+	ItemID          int   `gorm:"column:itemID" json:"itemID"`
 	Count           int16 `gorm:"column:count" json:"count"`
 	Price           int   `gorm:"column:price" json:"price"`
 	Bonus           int   `gorm:"column:bonus" json:"bonus"`

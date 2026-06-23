@@ -69,9 +69,14 @@ func runServe() error {
 	// 创建 AccountStore
 	accountStore := store.NewAccountStore(store.DB())
 
+	// 创建世界数据提供者 (硬编码默认世界/频道，后续可改为配置驱动)
+	configStore := store.NewGameConfigStore(store.DB())
+	worldData := login.NewWorldDataProvider(configStore, log)
+
 	// 创建登录相关组件
 	coordinator := login.NewSessionCoordinator()
-	authHandler := loginhandler.NewAuthHandler(accountStore, coordinator, cfg.Login.AutoRegister, log)
+	characterStore := store.NewCharacterStore(store.DB())
+	authHandler := loginhandler.NewAuthHandler(accountStore, characterStore, coordinator, worldData, cfg, cfg.Login.AutoRegister, log)
 
 	// 创建 TCP 服务器
 	tcpSrv := network.NewTCPServer(cfg.Server.Host)

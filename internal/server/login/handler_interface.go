@@ -11,7 +11,9 @@ import "beidou-go/internal/network"
 type PacketHandler interface {
 	HandleCheckPassword(sess *network.Session, username, password string)
 	HandleServerList(sess *network.Session)
-	HandleCharList(sess *network.Session, worldID byte)
+	HandleServerStatusRequest(sess *network.Session, worldID int)
+	HandleCheckCharName(sess *network.Session, name string)
+	HandleCharList(sess *network.Session, worldID, channel byte)
 	HandleCharCreate(sess *network.Session, data []byte)
 	HandleCharSelect(sess *network.Session, charID int32)
 }

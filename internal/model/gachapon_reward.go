@@ -9,8 +9,8 @@ import (
 // GachaponReward 实体映射
 type GachaponReward struct {
 	gorm.Model
-	PoolId     *int      `json:"poolId,omitempty"`
-	ItemId     *int      `json:"itemId,omitempty"`
+	PoolID     *int      `json:"poolID,omitempty"`
+	ItemID     *int      `json:"itemID,omitempty"`
 	ItemName   string    `gorm:"-" json:"itemName,omitempty"`
 	Quantity   int16     `json:"quantity,omitempty"`
 	CreateTime time.Time `gorm:"column:create_time" json:"createTime,omitempty"`

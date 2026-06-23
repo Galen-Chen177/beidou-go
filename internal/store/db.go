@@ -3,12 +3,12 @@ package store
 import (
 	"fmt"
 
-	"beidou-go/config"
-	"beidou-go/internal/model"
-
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"beidou-go/config"
+	"beidou-go/internal/model"
 )
 
 var db *gorm.DB

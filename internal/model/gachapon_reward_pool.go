@@ -10,7 +10,7 @@ import (
 type GachaponRewardPool struct {
 	gorm.Model
 	Name         string    `gorm:"column:name;type:varchar(200)" json:"name,omitempty"`
-	GachaponId   *int      `json:"gachaponId,omitempty"`
+	GachaponID   *int      `json:"gachaponID,omitempty"`
 	GachaponName string    `gorm:"-" json:"gachaponName,omitempty"`
 	Weight       *int      `json:"weight,omitempty"`
 	IsPublic     *bool     `json:"isPublic,omitempty"`

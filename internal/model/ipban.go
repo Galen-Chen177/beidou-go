@@ -8,7 +8,7 @@ import (
 type Ipban struct {
 	gorm.Model
 	Ipbanid int64  `gorm:"column:ipbanid" json:"ipbanid"`
-	Ip      string `gorm:"column:ip;type:varchar(200)" json:"ip"`
+	IP      string `gorm:"column:ip;type:varchar(200)" json:"ip"`
 	Aid     string `gorm:"column:aid;type:varchar(200)" json:"aid"`
 }
 
