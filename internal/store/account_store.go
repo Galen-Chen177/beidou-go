@@ -22,6 +22,19 @@ func NewAccountStore(db *gorm.DB) *AccountStore {
 	return &AccountStore{db: db}
 }
 
+// FindByID 按账号 ID 查找
+func (s *AccountStore) FindByID(id uint) (*model.Account, error) {
+	var account model.Account
+	result := s.db.First(&account, id)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, ErrAccountNotFound
+		}
+		return nil, result.Error
+	}
+	return &account, nil
+}
+
 // FindByName 按账号名查找
 func (s *AccountStore) FindByName(name string) (*model.Account, error) {
 	var account model.Account

@@ -6,6 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// 角色表
 // Character 对应表 characters
 type Character struct {
 	gorm.Model
@@ -40,7 +41,6 @@ type Character struct {
 	Gm                   int       `gorm:"column:gm" json:"gm,omitempty"`
 	Party                int       `gorm:"column:party" json:"party,omitempty"`
 	BuddyCapacity        int       `gorm:"column:buddyCapacity" json:"buddyCapacity,omitempty"`
-	Createdate           time.Time `gorm:"column:createdate" json:"createdate,omitempty"`
 	Rank                 int       `gorm:"column:rank" json:"rank,omitempty"`
 	RankMove             int       `gorm:"column:rankMove" json:"rankMove,omitempty"`
 	JobRank              int       `gorm:"column:jobRank" json:"jobRank,omitempty"`
@@ -64,7 +64,7 @@ type Character struct {
 	Useslots             int       `gorm:"column:useslots" json:"useslots,omitempty"`
 	Setupslots           int       `gorm:"column:setupslots" json:"setupslots,omitempty"`
 	Etcslots             int       `gorm:"column:etcslots" json:"etcslots,omitempty"`
-	FamilyId             int       `gorm:"column:familyId" json:"familyId,omitempty"`
+	FamilyID             int       `gorm:"column:familyID" json:"familyID,omitempty"`
 	Monsterbookcover     int       `gorm:"column:monsterbookcover" json:"monsterbookcover,omitempty"`
 	AllianceRank         int       `gorm:"column:allianceRank" json:"allianceRank,omitempty"`
 	VanquisherStage      int       `gorm:"column:vanquisherStage" json:"vanquisherStage,omitempty"`
@@ -74,8 +74,8 @@ type Character struct {
 	FinishedDojoTutorial int       `gorm:"column:finishedDojoTutorial" json:"finishedDojoTutorial,omitempty"`
 	VanquisherKills      int       `gorm:"column:vanquisherKills" json:"vanquisherKills,omitempty"`
 	SummonValue          int64     `gorm:"column:summonValue" json:"summonValue,omitempty"`
-	PartnerId            int       `gorm:"column:partnerId" json:"partnerId,omitempty"`
-	MarriageItemId       int       `gorm:"column:marriageItemId" json:"marriageItemId,omitempty"`
+	PartnerID            int       `gorm:"column:partnerID" json:"partnerID,omitempty"`
+	MarriageItemID       int       `gorm:"column:marriageItemID" json:"marriageItemID,omitempty"`
 	Reborns              int       `gorm:"column:reborns" json:"reborns,omitempty"`
 	Pqpoints             int       `gorm:"column:pqpoints" json:"pqpoints,omitempty"`
 	DataString           string    `gorm:"column:dataString;type:varchar(200)" json:"dataString,omitempty"`

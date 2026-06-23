@@ -18,7 +18,7 @@ type Guild struct {
 	LogoBGColor *int   `gorm:"column:logoBGColor" json:"logoBGColor,omitempty"`
 	Notice      string `gorm:"column:notice;type:varchar(200)" json:"notice,omitempty"`
 	Signature   *int   `json:"signature,omitempty"`
-	AllianceId  int64  `gorm:"column:allianceId" json:"allianceId,omitempty"`
+	AllianceID  int64  `gorm:"column:allianceID" json:"allianceID,omitempty"`
 }
 
 func (Guild) TableName() string {

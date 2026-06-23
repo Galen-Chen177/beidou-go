@@ -423,9 +423,9 @@ func (e *Engine) setupBindings(vm *goja.Runtime, c *Client) {
     })
     cm.Set("sendSimple", func(call goja.FunctionCall) goja.Value { ... })
     cm.Set("warp", func(call goja.FunctionCall) goja.Value {
-        mapId := call.Argument(0).ToInteger()
+        mapID := call.Argument(0).ToInteger()
         portal := call.Argument(1).ToInteger()
-        c.Warp(int(mapId), int(portal))
+        c.Warp(int(mapID), int(portal))
         return goja.Undefined()
     })
     cm.Set("dispose", func(call goja.FunctionCall) goja.Value { ... })
@@ -612,7 +612,7 @@ func (e *Engine) setupBindings(vm *goja.Runtime, c *Client) {
 
 ## 9. 当前进度
 
-> 最后更新: 2026-06-10
+> 最后更新: 2026-06-23
 
 ### 第一期：骨架搭建 ✅ 基本完成
 
@@ -628,7 +628,7 @@ func (e *Engine) setupBindings(vm *goja.Runtime, c *Client) {
 
 **里程碑**: 客户端能建立连接，SERVER_HELLO → CLIENT_HELLO 握手成功，加密通道建立 ✅
 
-### 第二期：登录与角色选择 🔄 进行中
+### 第二期：登录与角色选择 ✅ 基本完成
 
 - [x] SERVER_HELLO 握手（服务端先发言，明文交换 IV）
 - [x] CLIENT_HELLO 解密 + IV 同步
@@ -636,13 +636,17 @@ func (e *Engine) setupBindings(vm *goja.Runtime, c *Client) {
 - [x] 自动注册（`auto_register` 配置项）
 - [x] 封禁检测 / 旧 hash 自动迁移到 bcrypt / 多开检测
 - [x] LoginStatus 成功/失败响应封包构造
-- [ ] 服务器列表响应 (HandleServerList)
-- [ ] 角色列表 (HandleCharList)
-- [ ] 角色创建 (HandleCharCreate)
-- [ ] 角色选择进入游戏 (HandleCharSelect → Channel Server)
+- [x] 服务器列表响应 (HandleServerList) — 包6/7/8/9
+- [x] 服务器状态请求 (ServerStatusRequest 0x06)
+- [x] 角色名检查 (CheckCharName 0x15)
+- [x] 角色列表 (HandleCharList)
+- [x] 角色创建 (HandleCharCreate)
+- [x] 角色选择进入游戏 (HandleCharSelect → ServerIP)
 - [ ] 频道服务器握手（Channel 侧 SERVER_HELLO 流程）
 
-**已知 Bug**: `SendPacket()` 中 `s.crypto.Encrypt(body)` 返回值被丢弃，响应包实际以明文发送，需要修
+**里程碑**: 客户端输入账号密码 → 看到服务器列表 → 选择世界 → 创建角色 → 选角色进入游戏 ✅
+
+**已修复 Bug**: `SendPacket()` 中 `s.crypto.Encrypt(body)` 返回值现已正确编码并发送，加密通道正常工作。
 
 ### 第三～七期：尚未开始
 
@@ -719,4 +723,4 @@ func Load(path string) (*Config, error) {
 
 ---
 
-*最后更新: 2026-06-10*
+*最后更新: 2026-06-23*

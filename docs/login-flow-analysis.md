@@ -731,7 +731,7 @@ Opcode: `CHARLIST`
 18      1B      writeByte(skinColor)      肤色
 19      4B      writeInt(face)            脸型
 23      4B      writeInt(hair)            发型
-27      8B*3    writeLong(petId)          宠物唯一ID ×3 (无宠物=0)
+27      8B*3    writeLong(petID)          宠物唯一ID ×3 (无宠物=0)
 51      1B      writeByte(level)          等级
 52      2B      writeShort(job)           职业
 54      2B      writeShort(str)           力量
@@ -747,7 +747,7 @@ Opcode: `CHARLIST`
         4B      writeInt(exp)             经验值
         2B      writeShort(fame)          人气
         4B      writeInt(gachaExp)        转蛋经验
-        4B      writeInt(mapId)           当前地图
+        4B      writeInt(mapID)           当前地图
         1B      writeByte(spawnPoint)     出生点
         4B      writeInt(0)               填充
 ```
@@ -763,12 +763,12 @@ Opcode: `CHARLIST`
 6       1B      writeBool(!mega)          非mega=1
 7       4B      writeInt(hair)            发型
         ── addCharEquips ──
-        循环: 每个装备 1B(pos) + 4B(itemId)
+        循环: 每个装备 1B(pos) + 4B(itemID)
         1B      0xFF                      结束标记
-        循环: 每个遮盖装备 1B(pos) + 4B(itemId)
+        循环: 每个遮盖装备 1B(pos) + 4B(itemID)
         1B      0xFF                      结束标记
         4B      writeInt(cashWeapon)      现金武器 (0=无)
-        4B*3    writeInt(petItemId)       宠物道具ID ×3 (0=无)
+        4B*3    writeInt(petItemID)       宠物道具ID ×3 (0=无)
 ```
 
 ### 6.4 Golang 数据结构
@@ -851,7 +851,7 @@ package charlist
 const OpcodeCharlist = 0x000B // CHARLIST opcode (具体值取决于版本)
 
 // GetCharList 构建角色列表应答包——对应 Java PacketCreator.getCharList()
-// serverId: 服务器ID
+// serverID: 服务器ID
 // status:   状态码 (0=正常)
 // chars:    该区角色列表
 // pic:      账号 PIC
@@ -1050,12 +1050,12 @@ func AddCharLook(p *OutPacket, chr *Character, mega bool) {
 //   maskedEquip: 被遮盖的装备 (pos > 100, 现金装备覆盖普通装备)
 //
 // 写入格式:
-//   循环 myEquip:   1B(pos) + 4B(itemId)
+//   循环 myEquip:   1B(pos) + 4B(itemID)
 //   0xFF            结束标记
-//   循环 maskedEquip: 1B(pos) + 4B(itemId)
+//   循环 maskedEquip: 1B(pos) + 4B(itemID)
 //   0xFF            结束标记
-//   4B              现金武器 itemId (0=无)
-//   4B×3            宠物道具 itemId (0=无)
+//   4B              现金武器 itemID (0=无)
+//   4B×3            宠物道具 itemID (0=无)
 func AddCharEquips(p *OutPacket, chr *Character) {
     // 构造 myEquip 和 maskedEquip 映射
     myEquip := make(map[int16]int32)
@@ -1158,7 +1158,7 @@ func main() {
 
     // 构建角色列表包
     rawPacket := GetCharList(
-        0,      // serverId
+        0,      // serverID
         0,      // status: 正常
         chars,
         "5678", // pic
@@ -1179,14 +1179,14 @@ func main() {
 
 | Java 类/方法 | Go 函数 | 说明 |
 |---|---|---|
-| `PacketCreator.getCharList(c, serverId, status)` | `GetCharList(serverID, status, chars, ...)` | 构建角色列表包 |
+| `PacketCreator.getCharList(c, serverID, status)` | `GetCharList(serverID, status, chars, ...)` | 构建角色列表包 |
 | `PacketCreator.addCharEntry(p, chr, viewall)` | `AddCharEntry(p, chr, viewall)` | 单角色条目 |
 | `PacketCreator.addCharStats(p, chr)` | `AddCharStats(p, chr)` | 角色属性 |
 | `PacketCreator.addCharLook(p, chr, mega)` | `AddCharLook(p, chr, mega)` | 角色外观 |
 | `PacketCreator.addCharEquips(p, chr)` | `AddCharEquips(p, chr)` | 装备外观 |
 | `PacketCreator.addRemainingSkillInfo(p, chr)` | `AddRemainingSkillInfo(p, chr)` | SP 表技能信息 |
 | `StringUtil.getRightPaddedStr(name, '\0', 13)` | `name + strings.Repeat("\x00", 13-len(name))` | 13字节固定长度名称 |
-| `c.loadCharacters(serverId)` | (DAO 层, 从 DB 加载) | 加载角色列表 |
+| `c.loadCharacters(serverID)` | (DAO 层, 从 DB 加载) | 加载角色列表 |
 | `c.getPic()` | `pic` 参数 | 获取 PIC |
 | `c.canBypassPic()` | `picBypass` 参数 | 是否跳过 PIC |
 | `c.getCharacterSlots()` | `charSlots` 参数 | 角色槽位数 |

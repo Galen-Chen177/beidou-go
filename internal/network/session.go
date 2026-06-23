@@ -135,7 +135,6 @@ func decodePacketLength(header []byte) int {
 //
 //	opcode+data → [SEND plain] → 加密 → [SEND encrypted] → TCP 字节
 func (s *Session) SendPacket(p *codec.Packet) error {
-	var err error
 	// 1. 编码为包体：[opcode:2B][data]
 	body := p.Bytes()
 
@@ -151,20 +150,20 @@ func (s *Session) SendPacket(p *codec.Packet) error {
 
 	// 2. 加密
 	if s.crypto != nil {
-		body, err = s.crypto.Encrypt(body)
+		// Encrypt 返回完整的 wire format: [encoded header][encrypted body]
+		out, err := s.crypto.Encrypt(body)
 		if err != nil {
 			return err
 		}
-		if Log.IsLevelEnabled(logrus.DebugLevel) {
-			Log.Debugf("[Sess %d] --- SEND encrypted ---\n%s", s.id, codec.HexDump(body))
-		}
+		Log.Debugf("[Sess %d] --- SEND encrypted ---\n%s", s.id, codec.HexDump(out))
+		_, err = s.conn.Write(out)
+		return err
 	}
 
-	// 3. 组包：[4 字节包头（小端 = bodyLen）][包体]
+	// 未握手阶段：简单包头 + 明文 body（通常不会走到这里，握手包走 Send()）
 	out := make([]byte, 4+len(body))
 	binary.LittleEndian.PutUint32(out[:4], uint32(len(body)))
 	copy(out[4:], body)
-
-	_, err = s.conn.Write(out)
+	_, err := s.conn.Write(out)
 	return err
 }

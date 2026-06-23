@@ -7,7 +7,7 @@ import (
 // Makercreatedata 对应表 makercreatedata (复合主键：id + itemid)
 type Makercreatedata struct {
 	gorm.Model
-	MakerID       int `gorm:"column:id" json:"makerId"`
+	MakerID       int `gorm:"column:id" json:"makerID"`
 	Itemid        int `gorm:"column:itemid" json:"itemid"`
 	ReqLevel      int `gorm:"column:reqLevel" json:"reqLevel"`
 	ReqMakerLevel int `gorm:"column:reqMakerLevel" json:"reqMakerLevel"`

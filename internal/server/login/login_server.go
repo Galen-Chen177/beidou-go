@@ -135,7 +135,6 @@ func (s *Server) dispatch(sess *network.Session, packet *codec.Packet) {
 			if pos+pwdLen <= len(packet.Data) {
 				fmt.Printf("密码: %q\n", string(packet.Data[pos:pos+pwdLen]))
 				password = string(packet.Data[pos : pos+pwdLen])
-				pos += pwdLen
 			}
 		}
 
@@ -145,14 +144,37 @@ func (s *Server) dispatch(sess *network.Session, packet *codec.Packet) {
 		// 重新请求服务器列表 (0x04)
 		s.handler.HandleServerList(sess)
 
+	case opcode.LoginServerStatusReq:
+		// 请求服务器状态 (0x06)，格式: [world:short(LE)]
+		if len(packet.Data) >= 2 {
+			worldID := int(packet.Data[0]) | int(packet.Data[1])<<8
+			s.handler.HandleServerStatusRequest(sess, worldID)
+		}
+
+	case opcode.LoginServerListReq:
+		// 请求服务器列表 (0x0B) — 登录成功后首次请求
+		s.handler.HandleServerList(sess)
+
 	case opcode.LoginCharListReq:
-		// 请求角色列表 (0x05)
-		if len(packet.Data) >= 1 {
-			s.handler.HandleCharList(sess, packet.Data[0])
+		// 请求角色列表 (0x05)，格式: [skip:byte(0)][world:byte][channel:byte(0-based)]
+		if len(packet.Data) >= 3 {
+			world := packet.Data[1]
+			channel := packet.Data[2] + 1 // 客户端发 0-based，服务端用 1-based
+			s.handler.HandleCharList(sess, world, channel)
+		}
+
+	case opcode.LoginCheckCharName:
+		// 检查角色名是否可用 (0x15)，格式: [name:string]
+		if len(packet.Data) >= 2 {
+			nameLen := int(packet.Data[0]) | int(packet.Data[1])<<8
+			if len(packet.Data) >= 2+nameLen {
+				name := string(packet.Data[2 : 2+nameLen])
+				s.handler.HandleCheckCharName(sess, name)
+			}
 		}
 
 	case opcode.LoginCharSelect:
-		// 选择角色进入游戏 (0x13)
+		// 选择角色进入游戏 (0x13)，格式: [charID:int(LE)][macs:string][hostString:string]
 		if len(packet.Data) >= 4 {
 			charID := int32(packet.Data[0]) | int32(packet.Data[1])<<8 |
 				int32(packet.Data[2])<<16 | int32(packet.Data[3])<<24

@@ -3,7 +3,9 @@
     "allow": [
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(ls -la /home/chj/workspace/golang_galen/)",
+      "Read(//home/chj/workspace/golang_galen/**)"
     ]
   }
 }

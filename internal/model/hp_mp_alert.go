@@ -5,7 +5,7 @@ import "gorm.io/gorm"
 // HpMpAlert 实体映射
 type HpMpAlert struct {
 	gorm.Model
-	CId *int `gorm:"column:cId" json:"cId,omitempty"`
+	CID *int `gorm:"column:cID" json:"cID,omitempty"`
 	Hp  int8 `json:"hp,omitempty"`
 	Mp  int8 `json:"mp,omitempty"`
 }
