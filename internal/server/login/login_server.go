@@ -140,8 +140,9 @@ func (s *Server) dispatch(sess *network.Session, packet *codec.Packet) {
 
 		s.handler.HandleCheckPassword(sess, username, password)
 
-	case opcode.LoginServerListRereq:
+	case opcode.LoginServerListRereq, opcode.LoginServerListReq:
 		// 重新请求服务器列表 (0x04)
+		// 请求服务器列表 (0x0B) — 登录成功后首次请求
 		s.handler.HandleServerList(sess)
 
 	case opcode.LoginServerStatusReq:
@@ -150,11 +151,6 @@ func (s *Server) dispatch(sess *network.Session, packet *codec.Packet) {
 			worldID := int(packet.Data[0]) | int(packet.Data[1])<<8
 			s.handler.HandleServerStatusRequest(sess, worldID)
 		}
-
-	case opcode.LoginServerListReq:
-		// 请求服务器列表 (0x0B) — 登录成功后首次请求
-		s.handler.HandleServerList(sess)
-
 	case opcode.LoginCharListReq:
 		// 请求角色列表 (0x05)，格式: [skip:byte(0)][world:byte][channel:byte(0-based)]
 		if len(packet.Data) >= 3 {
