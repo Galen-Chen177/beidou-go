@@ -161,6 +161,8 @@ func (s *Server) dispatch(sess *network.Session, packet *codec.Packet) {
 		// 创建角色 (0x16)
 		s.handler.HandleCharCreate(sess, packet.Data)
 
+	case opcode.ChannelHello:
+		// cli hello
 	default:
 		s.log.Warnf("[Login] 未处理的 opcode: session_id=%d, opcode=0x%04X", sess.ID(), packet.Opcode)
 	}
