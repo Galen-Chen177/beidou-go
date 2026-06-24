@@ -1,4 +1,4 @@
-package login
+package server_lib
 
 import (
 	"crypto/sha1"

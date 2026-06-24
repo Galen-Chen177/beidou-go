@@ -15,6 +15,7 @@ const (
 	LoginCheckDuplicated uint16 = 0x19 // 检查角色名重复
 	LoginCreateSecurity  uint16 = 0x20 // 设置 PIC/PIN
 	LoginAuthHTTP        uint16 = 0x1A // HTTP 认证
+	LoginClientHello     uint16 = 0x23 // cli hello
 )
 
 // 登录服务器 发送 (Server → Client)

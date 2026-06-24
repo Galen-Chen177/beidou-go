@@ -15,7 +15,7 @@ login:
   auto_register: true  # 自动注册新账号（调试阶段开启）
 
 channel:
-  port: 7575
+  port: 8485
   max_players: 100
 
 script:

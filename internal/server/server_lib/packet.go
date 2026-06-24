@@ -1,4 +1,4 @@
-package login
+package server_lib
 
 import (
 	"beidou-go/internal/model"
@@ -279,34 +279,34 @@ func addCharEntry(w *codec.Writer, chr *model.Character) {
 //
 //	对应 Java: PacketCreator.addCharStats()
 func addCharStats(w *codec.Writer, chr *model.Character) {
-	w.WriteInt(uint32(chr.ID))                    // character id
-	w.WritePaddedString(chr.Name, 13)             // name (13B padded with \0)
-	w.WriteByte(byte(chr.Gender))                 // gender
-	w.WriteByte(byte(chr.Skincolor))              // skin color
-	w.WriteInt(uint32(chr.Face))                  // face
-	w.WriteInt(uint32(chr.Hair))                  // hair
+	w.WriteInt(uint32(chr.ID))        // character id
+	w.WritePaddedString(chr.Name, 13) // name (13B padded with \0)
+	w.WriteByte(byte(chr.Gender))     // gender
+	w.WriteByte(byte(chr.Skincolor))  // skin color
+	w.WriteInt(uint32(chr.Face))      // face
+	w.WriteInt(uint32(chr.Hair))      // hair
 	// pet IDs[3] — 暂无宠物数据，写 0
 	for range 3 {
 		w.WriteLong(0)
 	}
-	w.WriteByte(byte(chr.Level))                  // level
-	w.WriteShort(uint16(chr.Job))                 // job
-	w.WriteShort(uint16(chr.AttrStr))             // str
-	w.WriteShort(uint16(chr.AttrDex))             // dex
-	w.WriteShort(uint16(chr.AttrInt))             // int
-	w.WriteShort(uint16(chr.AttrLuk))             // luk
-	w.WriteShort(uint16(chr.Hp))                  // hp
-	w.WriteShort(uint16(chr.Maxhp))               // maxhp
-	w.WriteShort(uint16(chr.Mp))                  // mp
-	w.WriteShort(uint16(chr.Maxmp))               // maxmp
-	w.WriteShort(uint16(chr.Ap))                  // remaining ap
-	w.WriteShort(0)                               // remaining sp (简化：后续解析 Sp 字符串)
-	w.WriteInt(uint32(chr.Exp))                   // exp
-	w.WriteShort(uint16(chr.Fame))                // fame
-	w.WriteInt(uint32(chr.Gachaexp))              // gacha exp
-	w.WriteInt(uint32(chr.Map))                   // current map id
-	w.WriteByte(byte(chr.Spawnpoint))             // spawnpoint
-	w.WriteInt(0)                                 // reserved
+	w.WriteByte(byte(chr.Level))      // level
+	w.WriteShort(uint16(chr.Job))     // job
+	w.WriteShort(uint16(chr.AttrStr)) // str
+	w.WriteShort(uint16(chr.AttrDex)) // dex
+	w.WriteShort(uint16(chr.AttrInt)) // int
+	w.WriteShort(uint16(chr.AttrLuk)) // luk
+	w.WriteShort(uint16(chr.Hp))      // hp
+	w.WriteShort(uint16(chr.Maxhp))   // maxhp
+	w.WriteShort(uint16(chr.Mp))      // mp
+	w.WriteShort(uint16(chr.Maxmp))   // maxmp
+	w.WriteShort(uint16(chr.Ap))      // remaining ap
+	w.WriteShort(0)                   // remaining sp (简化：后续解析 Sp 字符串)
+	w.WriteInt(uint32(chr.Exp))       // exp
+	w.WriteShort(uint16(chr.Fame))    // fame
+	w.WriteInt(uint32(chr.Gachaexp))  // gacha exp
+	w.WriteInt(uint32(chr.Map))       // current map id
+	w.WriteByte(byte(chr.Spawnpoint)) // spawnpoint
+	w.WriteInt(0)                     // reserved
 }
 
 // addCharLook 写入角色外观
@@ -343,10 +343,10 @@ func addCharLook(w *codec.Writer, chr *model.Character) {
 //	  [charID:int][reserved:5B(0x00)]
 func ServerIP(ip [4]byte, port int, charID int32) *codec.Packet {
 	w := codec.NewWriterWithOpcode(opcode.LoginServerIP)
-	w.WriteShort(0)               // reserved
-	w.WriteBytes(ip[:])           // IP 地址 (4 bytes)
-	w.WriteShort(uint16(port))    // 端口
-	w.WriteInt(uint32(charID))    // 角色 ID
+	w.WriteShort(0)                     // reserved
+	w.WriteBytes(ip[:])                 // IP 地址 (4 bytes)
+	w.WriteShort(uint16(port))          // 端口
+	w.WriteInt(uint32(charID))          // 角色 ID
 	w.WriteBytes([]byte{0, 0, 0, 0, 0}) // reserved 5 bytes
 	return w.Packet()
 }

@@ -11,6 +11,7 @@ import (
 	"beidou-go/internal/network/codec"
 	"beidou-go/internal/opcode"
 	"beidou-go/internal/server/login"
+	"beidou-go/internal/server/server_lib"
 	"beidou-go/internal/store"
 )
 
@@ -19,14 +20,19 @@ type AuthHandler struct {
 	store          *store.AccountStore
 	characterStore *store.CharacterStore
 	coordinator    *login.SessionCoordinator
-	worldData      *login.WorldDataProvider
+	worldData      *server_lib.WorldDataProvider
 	cfg            *config.Config
 	autoReg        bool
 	log            *logrus.Logger
 }
 
 // NewAuthHandler 创建 AuthHandler
-func NewAuthHandler(accountStore *store.AccountStore, characterStore *store.CharacterStore, coord *login.SessionCoordinator, worldData *login.WorldDataProvider, cfg *config.Config, autoReg bool, log *logrus.Logger) *AuthHandler {
+func NewAuthHandler(accountStore *store.AccountStore,
+	characterStore *store.CharacterStore,
+	coord *login.SessionCoordinator,
+	worldData *server_lib.WorldDataProvider,
+	cfg *config.Config,
+	autoReg bool, log *logrus.Logger) *AuthHandler {
 	return &AuthHandler{
 		store:          accountStore,
 		characterStore: characterStore,
@@ -49,26 +55,26 @@ func (h *AuthHandler) HandleCheckPassword(sess *network.Session, username, passw
 			// 账号不存在
 			if h.autoReg {
 				h.log.Infof("[Auth] 自动注册: account=%s", username)
-				hash, hashErr := login.HashPassword(password)
+				hash, hashErr := server_lib.HashPassword(password)
 				if hashErr != nil {
 					h.log.Errorf("[Auth] bcrypt hash 失败: %v", hashErr)
-					sendAndLog(sess, login.LoginStatusFailed(opcode.LoginDBFail), h.log)
+					sendAndLog(sess, server_lib.LoginStatusFailed(opcode.LoginDBFail), h.log)
 					return
 				}
 				account, err = h.store.Create(username, hash)
 				if err != nil {
 					h.log.Errorf("[Auth] 创建账号失败: %v", err)
-					sendAndLog(sess, login.LoginStatusFailed(opcode.LoginDBFail), h.log)
+					sendAndLog(sess, server_lib.LoginStatusFailed(opcode.LoginDBFail), h.log)
 					return
 				}
 			} else {
 				h.log.Infof("[Auth] 账号不存在: account=%s", username)
-				sendAndLog(sess, login.LoginStatusFailed(opcode.LoginNotRegistered), h.log)
+				sendAndLog(sess, server_lib.LoginStatusFailed(opcode.LoginNotRegistered), h.log)
 				return
 			}
 		} else {
 			h.log.Errorf("[Auth] 数据库查询失败: %v", err)
-			sendAndLog(sess, login.LoginStatusFailed(opcode.LoginDBFail), h.log)
+			sendAndLog(sess, server_lib.LoginStatusFailed(opcode.LoginDBFail), h.log)
 			return
 		}
 	}
@@ -76,20 +82,20 @@ func (h *AuthHandler) HandleCheckPassword(sess *network.Session, username, passw
 	// 3. 封禁检测
 	if account.Banned {
 		h.log.Infof("[Auth] 账号已封禁: account=%s", username)
-		sendAndLog(sess, login.LoginStatusFailed(opcode.LoginBanned), h.log)
+		sendAndLog(sess, server_lib.LoginStatusFailed(opcode.LoginBanned), h.log)
 		return
 	}
 
 	// 4. 密码校验
-	if !login.VerifyPassword(password, account.Password) {
+	if !server_lib.VerifyPassword(password, account.Password) {
 		h.log.Infof("[Auth] 密码错误: account=%s", username)
-		sendAndLog(sess, login.LoginStatusFailed(opcode.LoginWrongPassword), h.log)
+		sendAndLog(sess, server_lib.LoginStatusFailed(opcode.LoginWrongPassword), h.log)
 		return
 	}
 
 	// 5. 旧 hash 迁移：如果密码是非 bcrypt 格式，自动升级
-	if login.NeedsRehash(account.Password) {
-		newHash, hashErr := login.HashPassword(password)
+	if server_lib.NeedsRehash(account.Password) {
+		newHash, hashErr := server_lib.HashPassword(password)
 		if hashErr != nil {
 			h.log.Warnf("[Auth] bcrypt 迁移失败: account=%s, err=%v", username, hashErr)
 		} else {
@@ -105,7 +111,7 @@ func (h *AuthHandler) HandleCheckPassword(sess *network.Session, username, passw
 	// 6. 多开检测
 	if err := h.coordinator.AttemptLogin(username, sess.ID()); err != nil {
 		h.log.Infof("[Auth] 多开拒绝: account=%s", username)
-		sendAndLog(sess, login.LoginStatusFailed(opcode.LoginAlreadyLogin), h.log)
+		sendAndLog(sess, server_lib.LoginStatusFailed(opcode.LoginAlreadyLogin), h.log)
 		return
 	}
 
@@ -115,7 +121,7 @@ func (h *AuthHandler) HandleCheckPassword(sess *network.Session, username, passw
 	// 8. 登录成功
 	sess.AccountID = account.ID
 
-	if err := sess.SendPacket(login.LoginStatusSuccess(account)); err != nil {
+	if err := sess.SendPacket(server_lib.LoginStatusSuccess(account)); err != nil {
 		logrus.Errorf("[Auth] 登录失败 err:%v", err)
 		return
 	}
@@ -137,7 +143,7 @@ func (h *AuthHandler) HandleServerList(sess *network.Session) {
 
 	// 1. 发送每个世界的服务器列表 (包6)
 	for _, world := range h.worldData.Worlds() {
-		pkt := login.ServerListEntry(&world)
+		pkt := server_lib.ServerListEntry(&world)
 		if err := sess.SendPacket(pkt); err != nil {
 			h.log.Errorf("[Auth] 发送服务器列表失败: world=%d, err=%v", world.ID, err)
 			return
@@ -146,19 +152,19 @@ func (h *AuthHandler) HandleServerList(sess *network.Session) {
 	}
 
 	// 2. 发送服务器列表结束标记 (包7)
-	if err := sess.SendPacket(login.EndOfServerList()); err != nil {
+	if err := sess.SendPacket(server_lib.EndOfServerList()); err != nil {
 		h.log.Errorf("[Auth] 发送列表结束标记失败: err=%v", err)
 		return
 	}
 
 	// 3. 发送上次连接的世界 (包8)
-	if err := sess.SendPacket(login.LastConnectedWorld(h.worldData.LastConnectedWorldID())); err != nil {
+	if err := sess.SendPacket(server_lib.LastConnectedWorld(h.worldData.LastConnectedWorldID())); err != nil {
 		h.log.Errorf("[Auth] 发送上次连接世界失败: err=%v", err)
 		return
 	}
 
 	// 4. 发送推荐世界消息 (包9)
-	if err := sess.SendPacket(login.RecommendedWorlds(h.worldData.RecommendedWorlds())); err != nil {
+	if err := sess.SendPacket(server_lib.RecommendedWorlds(h.worldData.RecommendedWorlds())); err != nil {
 		h.log.Errorf("[Auth] 发送推荐世界消息失败: err=%v", err)
 		return
 	}
@@ -179,7 +185,7 @@ func (h *AuthHandler) HandleCheckCharName(sess *network.Session, name string) {
 	_, err := h.characterStore.FindByName(name)
 	nameUsed := err == nil // 找到记录说明名字已被占用
 
-	if err := sess.SendPacket(login.CharNameResponse(name, nameUsed)); err != nil {
+	if err := sess.SendPacket(server_lib.CharNameResponse(name, nameUsed)); err != nil {
 		h.log.Errorf("[Auth] 发送 CharNameResponse 失败: %v", err)
 	}
 }
@@ -198,7 +204,7 @@ func (h *AuthHandler) HandleServerStatusRequest(sess *network.Session, worldID i
 	// 查找世界是否存在
 	world := h.worldData.FindWorld(worldID)
 	if world == nil {
-		if err := sess.SendPacket(login.ServerStatus(2)); err != nil {
+		if err := sess.SendPacket(server_lib.ServerStatus(2)); err != nil {
 			h.log.Errorf("[Auth] 发送 ServerStatus 失败: %v", err)
 		}
 		return
@@ -208,7 +214,7 @@ func (h *AuthHandler) HandleServerStatusRequest(sess *network.Session, worldID i
 	status := 0
 	// TODO: 后续实现 getWorldCapacityStatus()
 
-	if err := sess.SendPacket(login.ServerStatus(status)); err != nil {
+	if err := sess.SendPacket(server_lib.ServerStatus(status)); err != nil {
 		h.log.Errorf("[Auth] 发送 ServerStatus 失败: %v", err)
 	}
 }
@@ -226,7 +232,7 @@ func (h *AuthHandler) HandleCharList(sess *network.Session, worldID, channel byt
 	world := h.worldData.FindWorld(int(worldID))
 	if world == nil {
 		h.log.Warnf("[Auth] 角色列表请求世界不存在: session=%d, world=%d", sess.ID(), worldID)
-		if err := sess.SendPacket(login.ServerStatus(2)); err != nil {
+		if err := sess.SendPacket(server_lib.ServerStatus(2)); err != nil {
 			h.log.Errorf("[Auth] 发送 ServerStatus 失败: %v", err)
 		}
 		return
@@ -236,7 +242,7 @@ func (h *AuthHandler) HandleCharList(sess *network.Session, worldID, channel byt
 	ch := h.worldData.FindChannel(int(worldID), channel)
 	if ch == nil {
 		h.log.Warnf("[Auth] 角色列表请求频道不存在: session=%d, world=%d, channel=%d", sess.ID(), worldID, channel)
-		if err := sess.SendPacket(login.ServerStatus(2)); err != nil {
+		if err := sess.SendPacket(server_lib.ServerStatus(2)); err != nil {
 			h.log.Errorf("[Auth] 发送 ServerStatus 失败: %v", err)
 		}
 		return
@@ -250,7 +256,7 @@ func (h *AuthHandler) HandleCharList(sess *network.Session, worldID, channel byt
 	characters, err := h.characterStore.FindByAccountAndWorld(sess.AccountID, int(worldID))
 	if err != nil {
 		h.log.Errorf("[Auth] 查询角色列表失败: session=%d, account=%d, err=%v", sess.ID(), sess.AccountID, err)
-		if err := sess.SendPacket(login.ServerStatus(2)); err != nil {
+		if err := sess.SendPacket(server_lib.ServerStatus(2)); err != nil {
 			h.log.Errorf("[Auth] 发送 ServerStatus 失败: %v", err)
 		}
 		return
@@ -266,7 +272,7 @@ func (h *AuthHandler) HandleCharList(sess *network.Session, worldID, channel byt
 	h.log.Infof("[Auth] 角色列表: session=%d, count=%d, slots=%d", sess.ID(), len(characters), charSlots)
 
 	// 6. 发送角色列表
-	if err := sess.SendPacket(login.CharList(characters, charSlots)); err != nil {
+	if err := sess.SendPacket(server_lib.CharList(characters, charSlots)); err != nil {
 		h.log.Errorf("[Auth] 发送角色列表失败: session=%d, err=%v", sess.ID(), err)
 	}
 }
@@ -284,7 +290,7 @@ func (h *AuthHandler) HandleCharSelect(sess *network.Session, charID int32) {
 	character, err := h.characterStore.FindByID(charID)
 	if err != nil {
 		h.log.Warnf("[Auth] 角色不存在: charID=%d, err=%v", charID, err)
-		if sendErr := sess.SendPacket(login.AfterLoginError(17)); sendErr != nil {
+		if sendErr := sess.SendPacket(server_lib.AfterLoginError(17)); sendErr != nil {
 			h.log.Errorf("[Auth] 发送 AfterLoginError 失败: %v", sendErr)
 		}
 		return
@@ -294,7 +300,7 @@ func (h *AuthHandler) HandleCharSelect(sess *network.Session, charID int32) {
 	if character.Accountid != int(sess.AccountID) {
 		h.log.Warnf("[Auth] 角色不属于当前账号: charID=%d, charAccount=%d, sessAccount=%d",
 			charID, character.Accountid, sess.AccountID)
-		if sendErr := sess.SendPacket(login.AfterLoginError(17)); sendErr != nil {
+		if sendErr := sess.SendPacket(server_lib.AfterLoginError(17)); sendErr != nil {
 			h.log.Errorf("[Auth] 发送 AfterLoginError 失败: %v", sendErr)
 		}
 		return
@@ -309,7 +315,7 @@ func (h *AuthHandler) HandleCharSelect(sess *network.Session, charID int32) {
 	world := h.worldData.FindWorld(int(worldID))
 	if world == nil {
 		h.log.Warnf("[Auth] 世界不存在: world=%d", worldID)
-		if sendErr := sess.SendPacket(login.AfterLoginError(10)); sendErr != nil {
+		if sendErr := sess.SendPacket(server_lib.AfterLoginError(10)); sendErr != nil {
 			h.log.Errorf("[Auth] 发送 AfterLoginError 失败: %v", sendErr)
 		}
 		return
@@ -323,7 +329,7 @@ func (h *AuthHandler) HandleCharSelect(sess *network.Session, charID int32) {
 		charID, character.Name, worldID, sess.ChannelID, ip, port)
 
 	// 5. 发送频道服务器IP封包
-	if err := sess.SendPacket(login.ServerIP(ip, port, charID)); err != nil {
+	if err := sess.SendPacket(server_lib.ServerIP(ip, port, charID)); err != nil {
 		h.log.Errorf("[Auth] 发送 ServerIP 失败: session=%d, err=%v", sess.ID(), err)
 	}
 }
@@ -362,7 +368,7 @@ func (h *AuthHandler) HandleCharCreate(sess *network.Session, data []byte) {
 
 	// 2. 校验名字长度
 	if len(name) < 4 || len(name) > 12 {
-		if err := sess.SendPacket(login.DeleteCharResponse(0, 9)); err != nil {
+		if err := sess.SendPacket(server_lib.DeleteCharResponse(0, 9)); err != nil {
 			h.log.Errorf("[Auth] 发送 DeleteCharResponse 失败: %v", err)
 		}
 		return
@@ -372,7 +378,7 @@ func (h *AuthHandler) HandleCharCreate(sess *network.Session, data []byte) {
 	_, err := h.characterStore.FindByName(name)
 	if err == nil {
 		h.log.Infof("[Auth] 角色名已存在: name=%s", name)
-		if err := sess.SendPacket(login.DeleteCharResponse(0, 9)); err != nil {
+		if err := sess.SendPacket(server_lib.DeleteCharResponse(0, 9)); err != nil {
 			h.log.Errorf("[Auth] 发送 DeleteCharResponse 失败: %v", err)
 		}
 		return
@@ -395,7 +401,7 @@ func (h *AuthHandler) HandleCharCreate(sess *network.Session, data []byte) {
 	}
 	if len(existingChars) >= charSlots {
 		h.log.Infof("[Auth] 角色槽位已满: account=%d, chars=%d, slots=%d", sess.AccountID, len(existingChars), charSlots)
-		if err := sess.SendPacket(login.DeleteCharResponse(0, 9)); err != nil {
+		if err := sess.SendPacket(server_lib.DeleteCharResponse(0, 9)); err != nil {
 			h.log.Errorf("[Auth] 发送 DeleteCharResponse 失败: %v", err)
 		}
 		return
@@ -428,42 +434,42 @@ func (h *AuthHandler) HandleCharCreate(sess *network.Session, data []byte) {
 	// 6. 创建角色
 	now := time.Now()
 	character := &model.Character{
-		Accountid:         int(sess.AccountID),
-		World:             int(sess.WorldID),
-		Name:              name,
-		Level:             1,
-		Job:               job,
-		Face:              face,
-		Hair:              hair + hairColor,
-		Gender:            gender,
-		Skincolor:         skinColor,
-		Map:               10000, // Mushroom Town
-		Spawnpoint:        0,
-		AttrStr:           12,
-		AttrDex:           5,
-		AttrInt:           4,
-		AttrLuk:           4,
-		Maxhp:             50,
-		Maxmp:             5,
-		Hp:                50,
-		Mp:                5,
-		Ap:                0,
-		Sp:                "0",
-		Fame:              0,
-		Exp:               0,
-		Gachaexp:          0,
-		BuddyCapacity:     20,
-		Equipslots:        24,
-		Useslots:          24,
-		Setupslots:        24,
-		Etcslots:          24,
-		LastLogoutTime:    now,
-		LastExpGainTime:   now,
+		Accountid:       int(sess.AccountID),
+		World:           int(sess.WorldID),
+		Name:            name,
+		Level:           1,
+		Job:             job,
+		Face:            face,
+		Hair:            hair + hairColor,
+		Gender:          gender,
+		Skincolor:       skinColor,
+		Map:             10000, // Mushroom Town
+		Spawnpoint:      0,
+		AttrStr:         12,
+		AttrDex:         5,
+		AttrInt:         4,
+		AttrLuk:         4,
+		Maxhp:           50,
+		Maxmp:           5,
+		Hp:              50,
+		Mp:              5,
+		Ap:              0,
+		Sp:              "0",
+		Fame:            0,
+		Exp:             0,
+		Gachaexp:        0,
+		BuddyCapacity:   20,
+		Equipslots:      24,
+		Useslots:        24,
+		Setupslots:      24,
+		Etcslots:        24,
+		LastLogoutTime:  now,
+		LastExpGainTime: now,
 	}
 
 	if err := h.characterStore.Create(character); err != nil {
 		h.log.Errorf("[Auth] 创建角色失败: name=%s, err=%v", name, err)
-		if err := sess.SendPacket(login.DeleteCharResponse(0, 9)); err != nil {
+		if err := sess.SendPacket(server_lib.DeleteCharResponse(0, 9)); err != nil {
 			h.log.Errorf("[Auth] 发送 DeleteCharResponse 失败: %v", err)
 		}
 		return
@@ -472,7 +478,7 @@ func (h *AuthHandler) HandleCharCreate(sess *network.Session, data []byte) {
 	h.log.Infof("[Auth] 角色创建成功: name=%s, id=%d, account=%d", name, character.ID, sess.AccountID)
 
 	// 7. 发送新角色条目
-	if err := sess.SendPacket(login.AddNewCharEntry(character)); err != nil {
+	if err := sess.SendPacket(server_lib.AddNewCharEntry(character)); err != nil {
 		h.log.Errorf("[Auth] 发送 AddNewCharEntry 失败: %v", err)
 	}
 }

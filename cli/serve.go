@@ -4,8 +4,9 @@ import (
 	"beidou-go/config"
 	"beidou-go/internal/network"
 	"beidou-go/internal/server/channel"
+	"beidou-go/internal/server/handler"
 	"beidou-go/internal/server/login"
-	loginhandler "beidou-go/internal/server/login/handler"
+	"beidou-go/internal/server/server_lib"
 	"beidou-go/internal/store"
 	"context"
 	"fmt"
@@ -71,12 +72,12 @@ func runServe() error {
 
 	// 创建世界数据提供者 (硬编码默认世界/频道，后续可改为配置驱动)
 	configStore := store.NewGameConfigStore(store.DB())
-	worldData := login.NewWorldDataProvider(configStore, log)
+	worldData := server_lib.NewWorldDataProvider(configStore, log)
 
 	// 创建登录相关组件
 	coordinator := login.NewSessionCoordinator()
 	characterStore := store.NewCharacterStore(store.DB())
-	authHandler := loginhandler.NewAuthHandler(accountStore, characterStore, coordinator, worldData, cfg, cfg.Login.AutoRegister, log)
+	authHandler := handler.NewAuthHandler(accountStore, characterStore, coordinator, worldData, cfg, cfg.Login.AutoRegister, log)
 
 	// 创建 TCP 服务器
 	tcpSrv := network.NewTCPServer(cfg.Server.Host)
@@ -92,7 +93,7 @@ func runServe() error {
 	log.Infof("登录服务器启动 @ :%d", cfg.Login.Port)
 
 	// 启动频道服务器
-	channelSrv := channel.NewServer(cfg, tcpSrv, log)
+	channelSrv := channel.NewServer(cfg, tcpSrv, log, authHandler)
 	go func() {
 		if err := channelSrv.Start(); err != nil {
 			log.Fatalf("频道服务器启动失败: %v", err)

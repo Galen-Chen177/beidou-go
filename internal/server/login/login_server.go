@@ -21,11 +21,11 @@ type Server struct {
 	cfg     *config.Config
 	tcpSrv  *network.TCPServer
 	log     *logrus.Logger
-	handler PacketHandler
+	handler LoginHandler
 }
 
 // NewServer 创建登录服务器
-func NewServer(cfg *config.Config, tcpSrv *network.TCPServer, log *logrus.Logger, handler PacketHandler) *Server {
+func NewServer(cfg *config.Config, tcpSrv *network.TCPServer, log *logrus.Logger, handler LoginHandler) *Server {
 	return &Server{
 		cfg:     cfg,
 		tcpSrv:  tcpSrv,
@@ -58,26 +58,7 @@ func (s *Server) handleConnection(sess *network.Session) {
 		return
 	}
 
-	// 4. 接收并解密 CLIENT_HELLO（加密包，解密会使 recvCipher 的 IV 同步到正确状态）
-	clientHello, err := sess.ReadPacket()
-	if err != nil {
-		if err == io.EOF {
-			s.log.Infof("[Login] 客户端在握手阶段断开: session_id=%d", sess.ID())
-		} else {
-			s.log.Errorf("[Login] 读取 CLIENT_HELLO 失败: session_id=%d, err=%v", sess.ID(), err)
-		}
-		return
-	}
-	s.log.Infof("[Login] 收到 CLIENT_HELLO (加密): session_id=%d, len=%d hex:\n%s", sess.ID(), len(clientHello), codec.HexDump(clientHello))
-
-	decryptedHello, err := myCrypto.Decrypt(clientHello)
-	if err != nil {
-		s.log.Errorf("[Login] CLIENT_HELLO 解密失败: session_id=%d, err=%v", sess.ID(), err)
-		return
-	}
-	s.log.Infof("[Login] CLIENT_HELLO 解密后 (%d bytes):\n%s", len(decryptedHello), hex.Dump(decryptedHello))
-
-	// 5. 正常通信
+	// 4. 正常通信（首个包为 CLIENT_HELLO 0x0023，解密会使 recvCipher 的 IV 同步到正确状态）
 	for {
 		packet, err := sess.ReadPacket()
 		if err != nil {
@@ -111,6 +92,8 @@ func (s *Server) handleConnection(sess *network.Session) {
 // 在这里先解析成能看的懂的数据，然后调用具体的业务逻辑
 func (s *Server) dispatch(sess *network.Session, packet *codec.Packet) {
 	switch packet.Opcode {
+	case opcode.LoginClientHello: // CLIENT_HELLO，握手阶段已完成 IV 同步，无需额外处理
+		s.log.Infof("client hello")
 	// 密码验证 (0x01)
 	case opcode.LoginCheckPassword:
 		pos := 0
