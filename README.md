@@ -612,9 +612,9 @@ func (e *Engine) setupBindings(vm *goja.Runtime, c *Client) {
 
 ## 9. 当前进度
 
-> 最后更新: 2026-06-23
+> 最后更新: 2026-07-01
 
-### 第一期：骨架搭建 ✅ 基本完成
+### 第一期：骨架搭建 ✅ 已完成
 
 - [x] 初始化 Go module 和项目目录结构
 - [x] 实现封包编解码 (`internal/network/codec/`)
@@ -628,7 +628,7 @@ func (e *Engine) setupBindings(vm *goja.Runtime, c *Client) {
 
 **里程碑**: 客户端能建立连接，SERVER_HELLO → CLIENT_HELLO 握手成功，加密通道建立 ✅
 
-### 第二期：登录与角色选择 ✅ 基本完成
+### 第二期：登录与角色选择 ✅ 已完成
 
 - [x] SERVER_HELLO 握手（服务端先发言，明文交换 IV）
 - [x] CLIENT_HELLO 解密 + IV 同步
@@ -642,13 +642,24 @@ func (e *Engine) setupBindings(vm *goja.Runtime, c *Client) {
 - [x] 角色列表 (HandleCharList)
 - [x] 角色创建 (HandleCharCreate)
 - [x] 角色选择进入游戏 (HandleCharSelect → ServerIP)
-- [ ] 频道服务器握手（Channel 侧 SERVER_HELLO 流程）
+- [x] 频道服务器握手（Channel 侧 SERVER_HELLO + CLIENT_HELLO 流程）
+- [x] 0x14 PLAYER_LOGGEDIN 处理 — 角色进入频道：查 DB → 设 session → 发 GetCharInfo (SET_FIELD 0x7D)
+- [x] ChannelHandler 接口精简 — 从 7 个 login 方法改为独立的 `HandlePlayerLoggedin`
+- [x] Channel dispatch 路由重写 — 绑定 0x14 PLAYER_LOGGEDIN（不再错误路由 login opcode）
+- [x] Login/Channel handler 拆分 — `AuthHandler` 和 `ChannelHandlerImpl` 各自独立注入
+- [x] `server_lib/packet.go` 新增 `GetCharInfo()` + 时间转换 + 10 个子封包函数，对齐 Java `PacketCreator.getCharInfo()`
+- [x] `internal/server/` 下全部 4 个子目录均有 README 文档
 
-**里程碑**: 客户端输入账号密码 → 看到服务器列表 → 选择世界 → 创建角色 → 选角色进入游戏 ✅
+**里程碑**: 客户端输入账号密码 → 看到服务器列表 → 选择世界 → 创建角色 → 选角色进入游戏 → 频道服务器返回 GetCharInfo ✅
 
 **已修复 Bug**: `SendPacket()` 中 `s.crypto.Encrypt(body)` 返回值现已正确编码并发送，加密通道正常工作。
 
 ### 第三～七期：尚未开始
+
+详见各子目录 README 的未来规划：
+- [channel/](internal/server/channel/README.md) — 地图、聊天、战斗、NPC、背包、技能、任务
+- [login/](internal/server/login/README.md) — 角色删除、PIC/PIN、游客登录
+- [server_lib/](internal/server/server_lib/README.md) — 真实背包/技能数据填充、配置驱动世界列表
 
 ---
 
@@ -703,7 +714,9 @@ func Load(path string) (*Config, error) {
 ---
 
 ## 11. 注意事项
-    1. 各种设计文档都存在当前目录的docs文件夹下。
+
+1. 各种设计文档都存在当前目录的docs文件夹下。
+2. **README 约定**：`internal/server/` 下的每个子目录都有 README.md，说明该目录的职责、文件列表（含状态标记 ✅/⬜）、数据流和未来规划。每完成一个功能模块的代码，需同步更新相关 README 的进度状态。子目录 README 索引见 [internal/server/README.md](internal/server/README.md)。
 
 
 ---
