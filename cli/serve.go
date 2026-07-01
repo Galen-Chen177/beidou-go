@@ -93,7 +93,8 @@ func runServe() error {
 	log.Infof("登录服务器启动 @ :%d", cfg.Login.Port)
 
 	// 启动频道服务器
-	channelSrv := channel.NewServer(cfg, tcpSrv, log, authHandler)
+	channelHandler := handler.NewChannelHandler(characterStore, cfg, log)
+	channelSrv := channel.NewServer(cfg, tcpSrv, log, channelHandler)
 	go func() {
 		if err := channelSrv.Start(); err != nil {
 			log.Fatalf("频道服务器启动失败: %v", err)

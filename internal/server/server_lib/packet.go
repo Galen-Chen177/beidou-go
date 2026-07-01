@@ -1,6 +1,9 @@
 package server_lib
 
 import (
+	"math/rand"
+	"time"
+
 	"beidou-go/internal/model"
 	"beidou-go/internal/network/codec"
 	"beidou-go/internal/opcode"
@@ -381,4 +384,241 @@ func RecommendedWorlds(list []RecommendedWorld) *codec.Packet {
 		w.WriteString(rw.Message)
 	}
 	return w.Packet()
+}
+
+// ──────────── MapleStory 时间转换 ────────────
+
+// FT_UT_OFFSET 对齐 Java: FileTime epoch offset (1601-01-01 → 1970-01-01) + 时区偏移
+var FT_UT_OFFSET = int64(116444736010800000)
+
+// 特殊时间常量 (对齐 Java PacketCreator)
+const (
+	zeroTime    int64 = 94354848000000000  // getTime(-2)
+	permanent   int64 = 150841440000000000 // getTime(-3)
+	defaultTime int64 = 150842304000000000 // getTime(-1)
+)
+
+// init 计算当前时区对应的 FT_UT_OFFSET
+func init() {
+	_, offset := time.Now().Zone()
+	FT_UT_OFFSET += int64(offset) * 10000
+}
+
+// mapleTime 将 Unix 毫秒时间戳转换为 MapleStory 内部时间格式 (FILETIME 100ns 单位)
+//
+//	对齐 Java: PacketCreator.getTime(long utcTimestamp)
+func mapleTime(utcTimestamp int64) int64 {
+	if utcTimestamp < 0 && utcTimestamp >= -3 {
+		switch utcTimestamp {
+		case -1:
+			return defaultTime
+		case -2:
+			return zeroTime
+		case -3:
+			return permanent
+		}
+	}
+	return utcTimestamp*10000 + FT_UT_OFFSET
+}
+
+// ──────────── GetCharInfo (0x7D SET_FIELD) ────────────
+
+// GetCharInfo 构造角色进入游戏的 SET_FIELD 封包
+//
+//	对应 Java: PacketCreator.getCharInfo(Character chr)
+//
+//	这是频道服务器最关键的一个封包——客户端收到它才会显示游戏画面。
+//
+//	参数:
+//	  chr       — 角色数据
+//	  channelID — 频道号 (1-based，客户端收到的是 channel-1)
+func GetCharInfo(chr *model.Character, channelID byte) *codec.Packet {
+	w := codec.NewWriterWithOpcode(opcode.ChannelSetField)
+
+	// ── 头部 ──
+	w.WriteInt(uint32(channelID - 1)) // channel-1 (客户端用 0-based)
+	w.WriteByte(1)                    // battle: 1 = 不在战斗中
+	w.WriteByte(1)                    // updated: 1 = 已更新
+	w.WriteShort(0)                   // reserved
+
+	// ── 随机种子 (3 个) ──
+	for i := 0; i < 3; i++ {
+		w.WriteInt(uint32(rand.Int31()))
+	}
+
+	// ── addCharacterInfo ──
+	addCharacterInfo(w, chr)
+
+	// ── 服务器时间戳 ──
+	w.WriteLong(uint64(mapleTime(time.Now().UnixMilli())))
+
+	return w.Packet()
+}
+
+// addCharacterInfo 写入角色完整信息
+//
+//	对齐 Java: PacketCreator.addCharacterInfo()
+func addCharacterInfo(w *codec.Writer, chr *model.Character) {
+	w.WriteLong(0xFFFFFFFFFFFFFFFF) // unknown flag (-1)
+	w.WriteByte(0)                  // unknown flag
+
+	addCharStatsFull(w, chr)
+
+	// 好友容量
+	w.WriteByte(byte(chr.BuddyCapacity))
+
+	// 关联名 (暂无)
+	w.WriteByte(0) // 无关联名
+
+	// 金币
+	w.WriteInt(uint32(chr.Meso))
+
+	// 背包、技能、任务、小游戏、戒指、传送、怪物书、新年、地区
+	addInventoryInfo(w, chr)
+	addSkillInfo(w)
+	addQuestInfo(w)
+	addMiniGameInfo(w)
+	addRingInfo(w)
+	addTeleportInfo(w)
+	addMonsterBookInfo(w)
+	addNewYearInfo(w)
+	addAreaInfo(w)
+
+	// 结束标记
+	w.WriteShort(0)
+}
+
+// addCharStatsFull 写入角色属性 (getCharInfo 版本，与 addCharStats 格式相同)
+//
+//	对齐 Java: PacketCreator.addCharStats() — getCharInfo 路径复用同一方法
+func addCharStatsFull(w *codec.Writer, chr *model.Character) {
+	w.WriteInt(uint32(chr.ID))        // character id
+	w.WritePaddedString(chr.Name, 13) // name (13B)
+	w.WriteByte(byte(chr.Gender))     // gender
+	w.WriteByte(byte(chr.Skincolor))  // skin color
+	w.WriteInt(uint32(chr.Face))      // face
+	w.WriteInt(uint32(chr.Hair))      // hair
+
+	// pet IDs[3] — MVP: 无宠物
+	for range 3 {
+		w.WriteLong(0)
+	}
+
+	w.WriteByte(byte(chr.Level))      // level
+	w.WriteShort(uint16(chr.Job))     // job
+	w.WriteShort(uint16(chr.AttrStr)) // str
+	w.WriteShort(uint16(chr.AttrDex)) // dex
+	w.WriteShort(uint16(chr.AttrInt)) // int
+	w.WriteShort(uint16(chr.AttrLuk)) // luk
+	w.WriteShort(uint16(chr.Hp))      // hp
+	w.WriteShort(uint16(chr.Maxhp))   // maxhp
+	w.WriteShort(uint16(chr.Mp))      // mp
+	w.WriteShort(uint16(chr.Maxmp))   // maxmp
+	w.WriteShort(uint16(chr.Ap))      // remaining ap
+	w.WriteShort(0)                   // remaining sp (MVP: 未解析 SP 表)
+	w.WriteInt(uint32(chr.Exp))       // exp
+	w.WriteShort(uint16(chr.Fame))    // fame
+	w.WriteInt(uint32(chr.Gachaexp))  // gacha exp
+	w.WriteInt(uint32(chr.Map))       // current map id
+	w.WriteByte(byte(chr.Spawnpoint)) // spawnpoint
+	w.WriteInt(0)                     // reserved
+}
+
+// addInventoryInfo 写入背包信息 (MVP: 全部为空)
+//
+//	对齐 Java: PacketCreator.addInventoryInfo()
+func addInventoryInfo(w *codec.Writer, chr *model.Character) {
+	// 5 种背包的槽位容量
+	w.WriteByte(byte(chr.Equipslots)) // equip slots
+	w.WriteByte(byte(chr.Useslots))   // use slots
+	w.WriteByte(byte(chr.Setupslots)) // setup slots
+	w.WriteByte(byte(chr.Etcslots))   // etc slots
+	w.WriteByte(byte(chr.Equipslots)) // cash slots (暂无独立 cash 槽位字段)
+
+	// getTime(-2) = ZERO_TIME
+	w.WriteLong(uint64(zeroTime))
+
+	// equipped 物品 — 空
+	w.WriteShort(0)
+	// equipped cash 物品 — 空
+	w.WriteShort(0)
+	// equip 背包 — 空
+	w.WriteInt(0)
+	// use 背包 — 空
+	w.WriteByte(0)
+	// setup 背包 — 空
+	w.WriteByte(0)
+	// etc 背包 — 空
+	w.WriteByte(0)
+	// cash 背包 — 空 (无结束标记，Java 原样)
+}
+
+// addSkillInfo 写入技能信息 (MVP: 空)
+//
+//	对齐 Java: PacketCreator.addSkillInfo()
+func addSkillInfo(w *codec.Writer) {
+	w.WriteByte(0)  // start of skills
+	w.WriteShort(0) // skill count
+	w.WriteShort(0) // cooldown count
+}
+
+// addQuestInfo 写入任务信息 (MVP: 空)
+//
+//	对齐 Java: PacketCreator.addQuestInfo()
+func addQuestInfo(w *codec.Writer) {
+	w.WriteShort(0) // started quests count
+	w.WriteShort(0) // completed quests count
+}
+
+// addMiniGameInfo 写入小游戏信息 (MVP: 空)
+//
+//	对齐 Java: PacketCreator.addMiniGameInfo()
+func addMiniGameInfo(w *codec.Writer) {
+	w.WriteShort(0)
+}
+
+// addRingInfo 写入戒指信息 (MVP: 空)
+//
+//	对齐 Java: PacketCreator.addRingInfo()
+func addRingInfo(w *codec.Writer) {
+	w.WriteShort(0) // crush rings
+	w.WriteShort(0) // friendship rings
+	w.WriteShort(0) // marriage ring (partnerId <= 0)
+}
+
+// addTeleportInfo 写入传送石信息 (MVP: 全 0)
+//
+//	对齐 Java: PacketCreator.addTeleportInfo()
+func addTeleportInfo(w *codec.Writer) {
+	// 5 个普通传送石
+	for range 5 {
+		w.WriteInt(0)
+	}
+	// 10 个 VIP 传送石
+	for range 10 {
+		w.WriteInt(0)
+	}
+}
+
+// addMonsterBookInfo 写入怪物书信息 (MVP: 空)
+//
+//	对齐 Java: PacketCreator.addMonsterBookInfo()
+func addMonsterBookInfo(w *codec.Writer) {
+	w.WriteInt(0)   // cover
+	w.WriteByte(0)  // unknown
+	w.WriteShort(0) // card count
+}
+
+// addNewYearInfo 写入新年贺卡信息 (MVP: 空)
+//
+//	对齐 Java: PacketCreator.addNewYearInfo()
+func addNewYearInfo(w *codec.Writer) {
+	w.WriteShort(0) // received new year cards count
+}
+
+// addAreaInfo 写入区域信息 (MVP: 空)
+//
+//	对齐 Java: PacketCreator.addAreaInfo()
+func addAreaInfo(w *codec.Writer) {
+	w.WriteShort(0) // areaInfos size
 }

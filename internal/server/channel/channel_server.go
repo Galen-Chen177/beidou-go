@@ -7,7 +7,6 @@ import (
 	"beidou-go/internal/network/codec"
 	"beidou-go/internal/opcode"
 	"encoding/hex"
-	"fmt"
 	"io"
 
 	"github.com/sirupsen/logrus"
@@ -89,81 +88,19 @@ func (s *Server) handleConnection(sess *network.Session) {
 
 func (s *Server) dispatch(sess *network.Session, packet *codec.Packet) {
 	switch packet.Opcode {
-	case opcode.LoginClientHello: // CLIENT_HELLO，握手阶段已完成 IV 同步，无需额外处理
-		s.log.Infof("client hello")
-	// 密码验证 (0x01)
-	case opcode.LoginCheckPassword:
-		pos := 0
-		username := ""
-		password := ""
+	case opcode.LoginClientHello: // CLIENT_HELLO (0x23)，握手阶段 IV 同步完成
+		s.log.Infof("[channel] client hello handshake complete: session_id=%d", sess.ID())
 
-		if len(packet.Data) >= 2 {
-			nameLen := int(packet.Data[0]) | int(packet.Data[1])<<8
-			fmt.Printf("账号名长度: %d\n", nameLen)
-			pos += 2
-			if pos+nameLen <= len(packet.Data) {
-				fmt.Printf("账号名: %q\n", string(packet.Data[pos:pos+nameLen]))
-				username = string(packet.Data[pos : pos+nameLen])
-				pos += nameLen
-			}
-		}
-
-		if pos+2 <= len(packet.Data) {
-			pwdLen := int(packet.Data[pos]) | int(packet.Data[pos+1])<<8
-			fmt.Printf("密码长度: %d\n", pwdLen)
-			pos += 2
-			if pos+pwdLen <= len(packet.Data) {
-				fmt.Printf("密码: %q\n", string(packet.Data[pos:pos+pwdLen]))
-				password = string(packet.Data[pos : pos+pwdLen])
-			}
-		}
-
-		s.handler.HandleCheckPassword(sess, username, password)
-
-	case opcode.LoginServerListRereq, opcode.LoginServerListReq:
-		// 重新请求服务器列表 (0x04)
-		// 请求服务器列表 (0x0B) — 登录成功后首次请求
-		s.handler.HandleServerList(sess)
-
-	case opcode.LoginServerStatusReq:
-		// 请求服务器状态 (0x06)，格式: [world:short(LE)]
-		if len(packet.Data) >= 2 {
-			worldID := int(packet.Data[0]) | int(packet.Data[1])<<8
-			s.handler.HandleServerStatusRequest(sess, worldID)
-		}
-	case opcode.LoginCharListReq:
-		// 请求角色列表 (0x05)，格式: [skip:byte(0)][world:byte][channel:byte(0-based)]
-		if len(packet.Data) >= 3 {
-			world := packet.Data[1]
-			channel := packet.Data[2] + 1 // 客户端发 0-based，服务端用 1-based
-			s.handler.HandleCharList(sess, world, channel)
-		}
-
-	case opcode.LoginCheckCharName:
-		// 检查角色名是否可用 (0x15)，格式: [name:string]
-		if len(packet.Data) >= 2 {
-			nameLen := int(packet.Data[0]) | int(packet.Data[1])<<8
-			if len(packet.Data) >= 2+nameLen {
-				name := string(packet.Data[2 : 2+nameLen])
-				s.handler.HandleCheckCharName(sess, name)
-			}
-		}
-
-	case opcode.LoginCharSelect:
-		// 选择角色进入游戏 (0x13)，格式: [charID:int(LE)][macs:string][hostString:string]
+	case opcode.ChannelHello: // PLAYER_LOGGEDIN (0x14)，角色进入频道
 		if len(packet.Data) >= 4 {
 			charID := int32(packet.Data[0]) | int32(packet.Data[1])<<8 |
 				int32(packet.Data[2])<<16 | int32(packet.Data[3])<<24
-			s.handler.HandleCharSelect(sess, charID)
+			s.handler.HandlePlayerLoggedin(sess, charID)
+		} else {
+			s.log.Warnf("[channel] PLAYER_LOGGEDIN 数据过短: session_id=%d, len=%d", sess.ID(), len(packet.Data))
 		}
 
-	case opcode.LoginCharCreate:
-		// 创建角色 (0x16)
-		s.handler.HandleCharCreate(sess, packet.Data)
-
-	case opcode.ChannelHello:
-		// cli hello
 	default:
-		s.log.Warnf("[Login] 未处理的 opcode: session_id=%d, opcode=0x%04X", sess.ID(), packet.Opcode)
+		s.log.Warnf("[channel] 未处理的 opcode: session_id=%d, opcode=0x%04X", sess.ID(), packet.Opcode)
 	}
 }

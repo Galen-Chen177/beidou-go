@@ -5,7 +5,10 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebSearch",
       "Bash(ls -la /home/chj/workspace/golang_galen/)",
-      "Read(//home/chj/workspace/golang_galen/**)"
+      "Read(//home/chj/workspace/golang_galen/**)",
+      "Bash(find /home/chj/workspace/golang_galen/BeiDou-Server -name \"PlayerLoggedinHandler.java\" -type f 2>/dev/null)",
+      "Read(//home/chj/workspace/golang_galen/BeiDou-Server/**)",
+      "Bash(find /home/chj/workspace/golang_galen/BeiDou-Server -name \"PacketCreator.java\" -type f 2>/dev/null)"
     ]
   }
 }

@@ -43,6 +43,9 @@ const (
 
 // 频道服务器 发送 (Server → Client)
 const (
+	// 核心
+	ChannelSetField uint16 = 0x7D // SET_FIELD (getCharInfo — 角色进入游戏的关键封包)
+
 	// 地图
 	ChannelWarpToMap      uint16 = 0x3E // 传送到地图
 	ChannelSpawnPlayer    uint16 = 0x3D // 刷新其他玩家
@@ -75,4 +78,13 @@ const (
 
 	// 服务器消息（系统通知）
 	ChannelServerMessage uint16 = 0x44 // 服务器公告/喇叭
+
+	// 键位 & 快捷栏
+	ChannelKeymap        uint16 = 0x14F // KEYMAP
+	ChannelQuickslotInit uint16 = 0x9F  // QUICKSLOT_INIT
+	ChannelMacroSysData  uint16 = 0x7C  // MACRO_SYS_DATA_INIT
+
+	// 自动喝药
+	ChannelAutoHpPot uint16 = 0x150 // AUTO_HP_POT
+	ChannelAutoMpPot uint16 = 0x151 // AUTO_MP_POT
 )
